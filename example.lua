@@ -98,7 +98,6 @@ set_callback(function()
     for _,uid in ipairs(turks) do
         local ent = get_entity(uid)
         if ent:topmost() == ent and ent.rider_uid == -1 and math.random() > 0.3 then
-            messpect('set')
             c_ent_lib.set_custom_entity(uid, custom_mount)
         end
     end

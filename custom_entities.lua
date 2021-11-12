@@ -8,7 +8,7 @@ meta = {
 local module = {}
 local custom_types = {}
 
-local cb_update, cb_loading, cb_transition, cb_post_level_gen = -1, -1, -1, -1
+local cb_update, cb_loading, cb_transition, cb_post_room_gen, cb_post_level_gen = -1, -1, -1, -1, -1
 
 local custom_entities_t_info = {} --transition info
 local custom_entities_t_info_hh = {}
@@ -76,8 +76,7 @@ local function set_custom_ents_from_previous(companions)
     end
     for i, uid in ipairs(companions) do
         local ent = get_entity(uid)
-        for _, info in pairs(custom_entities_t_info_hh) do --check if linked_companion_parent works like this (-1 when not having parent)
-            messpect(true, ent.linked_companion_parent)
+        for _, info in pairs(custom_entities_t_info_hh) do
             if ent.type.id == info.e_type and ent.linked_companion_parent ~= -1 and
             ent.health == info.hp and test_flag(ent.more_flags, ENT_MORE_FLAG.CURSED_EFFECT) == info.cursed and
             ent:is_poisoned() == info.poisoned then
@@ -106,7 +105,6 @@ function module.init(game_frame)
                     if c_type.is_item then
                         local ent = get_entity(uid)
                         local holder
-                        messpect('fine')
                         if not ent or ent.state == 24 or ent.last_state == 24 then
                             holder = c_data.last_holder
                         else
@@ -116,7 +114,6 @@ function module.init(game_frame)
                             if holder.inventory.player_slot == -1 then
                                 set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
                             else
-                                messpect('great')
                                 set_transition_info(c_id, c_data, holder.inventory.player_slot, false) --the bumble
                             end
                         end
@@ -135,7 +132,7 @@ function module.init(game_frame)
                             if holder.inventory.player_slot == -1 then
                                 set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
                             else
-                                set_transition_info(c_id, c_data, holder.inventory.player_slot, false) --the bumble
+                                set_transition_info(c_id, c_data, holder.inventory.player_slot, false)
                             end
                         elseif rider_uid ~= -1 then
                             holder = get_entity(rider_uid)
@@ -164,7 +161,7 @@ function module.init(game_frame)
         end
     end, ON.POST_LEVEL_GENERATION)
 
-    set_callback(function()
+    cb_post_room_gen = set_callback(function()
         for _,c_type in ipairs(custom_types) do
             c_type.entities = {}
         end
@@ -176,6 +173,7 @@ function module.stop()
     clear_callback(cb_loading)
     clear_callback(cb_transition)
     clear_callback(cb_post_level_gen)
+    clear_callback(cb_post_room_gen)
 end
 
 function module.new_custom_entity(set_func, update_func, is_item, is_mount, opt_ent_type)
