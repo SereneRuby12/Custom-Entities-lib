@@ -15,6 +15,7 @@ stops lib callbacks
 ### :white_check_mark: int id new_custom_entity(function(entity, transition_data) set_func, function(entity, custom_ent_info) updatefunc, bool is_item, bool is_mount, optional\<int\> ent_type) 
 
 Set a new custom entity behiavour to be asigned in set_custom_entity()
+
 The function should take care of items being taken to next levels, waddler, etc.
 
 **The set function must return a table** for storing info about the entity, that will be passed to the updatefunc.
