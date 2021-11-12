@@ -1,5 +1,14 @@
+meta = {
+    name = "Custom Entities Library",
+    version = "0.2",
+    author = "Estebanfer",
+    description = "A library for creating custom entities easier"
+}
+
 local module = {}
 local custom_types = {}
+
+local cb_update, cb_loading, cb_transition, cb_post_level_gen = -1, -1, -1, -1
 
 local custom_entities_t_info = {} --transition info
 local custom_entities_t_info_hh = {}
@@ -12,8 +21,6 @@ local function set_transition_info(c_type_id, data, slot, mounted) --mounted: fa
         ["mounted"] = mounted
     })
 end
-
-local cb_update, cb_loading, cb_transition, cb_post_level_gen = -1, -1, -1, -1
 
 local function set_transition_info_hh(c_type_id, data, e_type, hp, cursed, poisoned)
     table.insert(custom_entities_t_info_hh,
@@ -70,6 +77,7 @@ local function set_custom_ents_from_previous(companions)
     for i, uid in ipairs(companions) do
         local ent = get_entity(uid)
         for _, info in pairs(custom_entities_t_info_hh) do --check if linked_companion_parent works like this (-1 when not having parent)
+            messpect(true, ent.linked_companion_parent)
             if ent.type.id == info.e_type and ent.linked_companion_parent ~= -1 and
             ent.health == info.hp and test_flag(ent.more_flags, ENT_MORE_FLAG.CURSED_EFFECT) == info.cursed and
             ent:is_poisoned() == info.poisoned then
@@ -93,7 +101,7 @@ function module.init(game_frame)
     
     cb_loading = set_callback(function()
         if state.loading == 2 and ((state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP) or state.screen_next == SCREEN.SPACESHIP) then
-            for _,c_type in ipairs(custom_types) do
+            for c_id,c_type in ipairs(custom_types) do
                 for uid, c_data in pairs(c_type.entities) do
                     if c_type.is_item then
                         local ent = get_entity(uid)
@@ -106,10 +114,10 @@ function module.init(game_frame)
                         end
                         if holder then
                             if holder.inventory.player_slot == -1 then
-                                set_transition_info_hh(holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
+                                set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
                             else
                                 messpect('great')
-                                set_transition_info(holder.inventory.player_slot, false) --the bumble
+                                set_transition_info(c_id, c_data, holder.inventory.player_slot, false) --the bumble
                             end
                         end
                     end
@@ -117,14 +125,22 @@ function module.init(game_frame)
                         local ent = get_entity(uid)
                         local holder, rider_uid
                         if not ent or ent.state == 24 or ent.last_state == 24 then
+                            holder = c_data.last_holder
                             rider_uid = c_data.last_rider_uid
                         else
+                            holder = get_holder_player(ent)
                             rider_uid = ent.rider_uid
                         end
-                        if rider_uid ~= -1 then
+                        if holder then
+                            if holder.inventory.player_slot == -1 then
+                                set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
+                            else
+                                set_transition_info(c_id, c_data, holder.inventory.player_slot, false) --the bumble
+                            end
+                        elseif rider_uid ~= -1 then
                             holder = get_entity(rider_uid)
                             if holder.type.search_flags == MASK.PLAYER then
-                                set_transition_info(holder.inventory.player_slot, true)
+                                set_transition_info(c_id, c_data, holder.inventory.player_slot, true)
                             end
                         end
                     end
@@ -139,9 +155,6 @@ function module.init(game_frame)
     end, ON.TRANSITION)
 
     cb_post_level_gen = set_callback(function()
-        for _,c_type in ipairs(custom_types) do
-            c_type.entities = {}
-        end
         if state.screen == 12 then
             local px, py, pl = get_position(players[1].uid)
             local companions = get_entities_at(0, MASK.PLAYER, px, py, pl, 2)
@@ -150,6 +163,12 @@ function module.init(game_frame)
             custom_entities_t_info_hh = {}
         end
     end, ON.POST_LEVEL_GENERATION)
+
+    set_callback(function()
+        for _,c_type in ipairs(custom_types) do
+            c_type.entities = {}
+        end
+    end, ON.POST_ROOM_GENERATION)
 end
 
 function module.stop()
@@ -170,7 +189,6 @@ function module.new_custom_entity(set_func, update_func, is_item, is_mount, opt_
         ["entities"] = {}
     }
     
-    --WIP del update
     if is_item then
         if is_mount then
             custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
