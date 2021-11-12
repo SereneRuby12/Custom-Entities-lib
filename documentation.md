@@ -16,8 +16,11 @@ stops lib callbacks
 
 Set a new custom entity behiavour to be asigned in set_custom_entity()
 The function should take care of items being taken to next levels, waddler, etc.
+
 **The set function must return a table** for storing info about the entity, that will be passed to the updatefunc.
+
 Also, the spawn function recives the table of the info when passed through a level
+
 is_item and is_mount are for taking care about items going through level transition.
 
 ### :white_check_mark: void set_custom_entity(uid, custom_ent_id)
