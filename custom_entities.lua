@@ -1,10 +1,10 @@
 meta = {
     name = "Custom Entities Library",
-    version = "0.2",
+    version = "0.3",
     author = "Estebanfer",
     description = "A library for creating custom entities easier"
 }
-
+--TODO: Backpacks
 local module = {}
 local custom_types = {}
 
@@ -12,6 +12,9 @@ local cb_update, cb_loading, cb_transition, cb_post_room_gen, cb_post_level_gen 
 
 local custom_entities_t_info = {} --transition info
 local custom_entities_t_info_hh = {}
+local custom_entities_t_info_storage = {}
+local storage_pos = nil
+
 local function set_transition_info(c_type_id, data, slot, mounted) --mounted: false = being held
     table.insert(custom_entities_t_info,
     {
@@ -32,6 +35,22 @@ local function set_transition_info_hh(c_type_id, data, e_type, hp, cursed, poiso
         ["cursed"] = cursed,
         ["poisoned"] = poisoned
     })
+end
+
+local function set_transition_info_storage(c_type_id, data, e_type)
+    if custom_entities_t_info_storage[e_type] then
+        table.insert(custom_entities_t_info_storage[e_type], {
+            ["custom_type_id"] = c_type_id,
+            ["data"] = data
+        })
+    else
+        custom_entities_t_info_storage[e_type] = {
+            {
+                ["custom_type_id"] = c_type_id,
+                ["data"] = data
+            }
+        }
+    end
 end
 
 local function update_customs()
@@ -60,6 +79,18 @@ local function get_holder_player(ent) -- or hh
     end
 end
 
+local function set_custom_items_waddler(items_zone, layer)
+    local stored_items = get_entities_overlapping_hitbox(0, MASK.ITEM, items_zone, layer)
+    for _, uid in ipairs(stored_items) do
+        local ent = get_entity(uid)
+        local custom_t_info = custom_entities_t_info_storage[ent.type.id]
+        if custom_t_info and custom_t_info[1] then
+            custom_types[custom_t_info[1].custom_type_id].entities[uid] = custom_types[custom_t_info[1].custom_type_id].set(ent, custom_t_info[1].data)
+            table.remove(custom_entities_t_info_storage[ent.type.id], 1)
+        end
+    end
+end
+
 local function set_custom_ents_from_previous(companions)
     for i, info in ipairs(custom_entities_t_info) do
         for ip,p in ipairs(players) do
@@ -85,7 +116,17 @@ local function set_custom_ents_from_previous(companions)
             end
         end
     end
+    if storage_pos then
+        set_custom_items_waddler(AABB:new(storage_pos.x-0.5, storage_pos.y+1.5, storage_pos.x+1.5, storage_pos.y), storage_pos.l)
+    end
+    storage_pos = nil
 end
+
+set_post_tile_code_callback(function(x, y, l) 
+    if not storage_pos then
+        storage_pos = {['x'] = x, ['y'] = y, ['l'] = l}
+    end
+end, 'storage_floor')
 
 function module.init(game_frame)
     if (game_frame) then
@@ -99,6 +140,7 @@ function module.init(game_frame)
     end
     
     cb_loading = set_callback(function()
+        local is_storage_floor_there = #get_entities_by_type(ENT_TYPE.FLOOR_STORAGE) > 0
         if state.loading == 2 and ((state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP) or state.screen_next == SCREEN.SPACESHIP) then
             for c_id,c_type in ipairs(custom_types) do
                 for uid, c_data in pairs(c_type.entities) do
@@ -116,6 +158,8 @@ function module.init(game_frame)
                             else
                                 set_transition_info(c_id, c_data, holder.inventory.player_slot, false) --the bumble
                             end
+                        elseif ent and is_storage_floor_there and ent.standing_on_uid and get_entity(ent.standing_on_uid).type.id == ENT_TYPE.FLOOR_STORAGE then
+                            set_transition_info_storage(c_id, c_data, ent.type.id)
                         end
                     end
                     if c_type.is_mount then
@@ -150,7 +194,7 @@ function module.init(game_frame)
         local companions = get_entities_by(0, MASK.PLAYER, LAYER.FRONT)
         set_custom_ents_from_previous(companions)
     end, ON.TRANSITION)
-
+    
     cb_post_level_gen = set_callback(function()
         if state.screen == 12 then
             local px, py, pl = get_position(players[1].uid)
@@ -160,7 +204,7 @@ function module.init(game_frame)
             custom_entities_t_info_hh = {}
         end
     end, ON.POST_LEVEL_GENERATION)
-
+    
     cb_post_room_gen = set_callback(function()
         for _,c_type in ipairs(custom_types) do
             c_type.entities = {}
