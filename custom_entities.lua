@@ -43,7 +43,6 @@ local function set_transition_info_storage(c_type_id, data, e_type)
             ["custom_type_id"] = c_type_id,
             ["data"] = data
         })
-        messpect("added")
     else
         custom_entities_t_info_storage[e_type] = {
             {
@@ -51,7 +50,6 @@ local function set_transition_info_storage(c_type_id, data, e_type)
                 ["data"] = data
             }
         }
-        messpect("new")
     end
 end
 
@@ -83,14 +81,12 @@ end
 
 local function set_custom_items_waddler(items_zone, layer)
     local stored_items = get_entities_overlapping_hitbox(0, MASK.ITEM, items_zone, layer)
-    messpect('set_customs', #stored_items)
     for _, uid in ipairs(stored_items) do
         local ent = get_entity(uid)
         local custom_t_info = custom_entities_t_info_storage[ent.type.id]
         if custom_t_info and custom_t_info[1] then
             custom_types[custom_t_info[1].custom_type_id].entities[uid] = custom_types[custom_t_info[1].custom_type_id].set(ent, custom_t_info[1].data)
             table.remove(custom_entities_t_info_storage[ent.type.id], 1)
-            messpect('added, rest: ', #custom_entities_t_info_storage[ent.type.id])
         end
     end
 end
@@ -121,35 +117,9 @@ local function set_custom_ents_from_previous(companions)
         end
     end
     if storage_pos then
-        messpect(storage_pos.x, storage_pos.y, storage_pos.l)
         set_custom_items_waddler(AABB:new(storage_pos.x-0.5, storage_pos.y+1.5, storage_pos.x+1.5, storage_pos.y), storage_pos.l)
     end
     storage_pos = nil
-    --[[
-    local storage_floor = get_entities_by_type(ENT_TYPE.FLOOR_STORAGE)[1]
-    if storage_floor then
-        local items_zone = get_hitbox(storage_floor, 0, 0, -0.8)
-        items_zone.right = items_zone.right + 1
-        messpect('floor')
-        set_custom_items_waddler(items_zone)
-        custom_entities_t_info_storage = {}
-        --for _, info in ipairs(custom_entities_t_info_storage) do
-        
-        --end
-    else
-        local waddler = get_entities_by_type(ENT_TYPE.MONS_STORAGEGUY)[1]
-        if waddler then
-            messpect('waddler', test_flag(get_entity_flags(waddler), ENT_FLAG.FACING_LEFT) and 'left' or 'right')
-            local x, y = get_position(waddler)
-            if test_flag(get_entity_flags(waddler), ENT_FLAG.FACING_LEFT) then
-                set_custom_items_waddler(AABB:new(x-3, y-1, x-1, y-2))
-            else
-                set_custom_items_waddler(AABB:new(x+1, y-1, x+3, y-2))
-            end
-            custom_entities_t_info_storage = {}
-        end
-    end
-    --]]
 end
 
 set_post_tile_code_callback(function(x, y, l) 
@@ -189,7 +159,6 @@ function module.init(game_frame)
                                 set_transition_info(c_id, c_data, holder.inventory.player_slot, false) --the bumble
                             end
                         elseif ent and is_storage_floor_there and ent.standing_on_uid and get_entity(ent.standing_on_uid).type.id == ENT_TYPE.FLOOR_STORAGE then
-                            messpect(uid)
                             set_transition_info_storage(c_id, c_data, ent.type.id)
                         end
                     end
