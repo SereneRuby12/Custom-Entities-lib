@@ -68,7 +68,7 @@ local function update_customs()
 end
 
 local function get_holder_player(ent) -- or hh
-    local holder = ent:topmost()
+    local holder = ent:topmost_mount()
     if holder == ent then
         return nil
     elseif holder.type.search_flags == MASK.PLAYER or holder.type.search_flags == MASK.MOUNT then
@@ -269,9 +269,50 @@ function module.new_custom_entity(set_func, update_func, is_item, is_mount, opt_
     return custom_id
 end
 
+function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil_x, recoil_y, opt_ent_type)
+    local custom_id = #custom_types + 1
+    custom_types[custom_id] = {
+        ["set"] = set_func,
+        ["update_callback"] = update_func,
+        ["is_item"] = true,
+        ["is_mount"] = false,
+        ["ent_type"] = opt_ent_type,
+        ["shoot"] = firefunc,
+        ["cooldown"] = cooldown,
+        ["recoil_x"] = recoil_x,
+        ["recoil_y"] = recoil_y,
+        ["entities"] = {}
+    }
+    custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+        ent.cooldown = math.max(ent.cooldown, 2)
+        local holder = ent:topmost_mount()
+        if holder ~= ent then
+            local holder_input = read_input(holder.uid)
+            if holder:is_button_pressed(BUTTON.WHIP) and ent.cooldown == 2 and holder.state ~= CHAR_STATE.DUCKING then
+                ent.cooldown = c_type.cooldown+2
+                local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
+                holder.velocityx = holder.velocityx + c_type.recoil_x*recoil_dir
+                holder.velocityy = holder.velocityy + c_type.recoil_y
+                c_type.shoot(ent, c_data)
+            end
+        end
+        c_type.update_callback(ent, c_data)
+        if is_portal then
+            if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
+                c_data.last_holder = get_holder_player(ent)
+            end
+        end
+    end
+    return custom_id
+end
+
 function module.set_custom_entity(uid, custom_ent_id)
     local ent = get_entity(uid)
     custom_types[custom_ent_id].entities[uid] = custom_types[custom_ent_id].set(ent)
 end
+
+module.custom_types = custom_types
+
+register_console_command('get_custom_types', function() return custom_types end)
 
 return module
