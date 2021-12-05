@@ -1,8 +1,8 @@
 meta = {
     name = "Custom Entities Library",
-    version = "0.3",
+    version = "0.5",
     author = "Estebanfer",
-    description = "A library for creating custom entities easier"
+    description = "A library for creating custom entities"
 }
 --TODO: Backpacks
 local module = {}
@@ -14,6 +14,52 @@ local custom_entities_t_info = {} --transition info
 local custom_entities_t_info_hh = {}
 local custom_entities_t_info_storage = {}
 local storage_pos = nil
+
+local function join(a, b)
+    local result = {table.unpack(a)}
+    table.move(b, 1, #b, #result + 1, result)
+    return result
+end
+
+local shop_items = {ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_SKELETON_KEY, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_METAL_SHIELD, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_PICKUP_HEDJET, ENT_TYPE.ITEM_PICKUP_ROYALJELLY, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_WOODEN_ARROW, ENT_TYPE.ITEM_PICKUP_COOKEDTURKEY}
+local extra_shop_items = {ENT_TYPE.ITEM_LIGHT_ARROW, ENT_TYPE.ITEM_PICKUP_GIANTFOOD, ENT_TYPE.ITEM_PICKUP_ELIXIR, ENT_TYPE.ITEM_PICKUP_CLOVER, ENT_TYPE.ITEM_PICKUP_SPECIALCOMPASS, ENT_TYPE.ITEM_PICKUP_UDJATEYE, ENT_TYPE.ITEM_PICKUP_KAPALA, ENT_TYPE.ITEM_PICKUP_CROWN, ENT_TYPE.ITEM_PICKUP_EGGPLANTCROWN, ENT_TYPE.ITEM_PICKUP_TRUECROWN, ENT_TYPE.ITEM_PICKUP_ANKH, ENT_TYPE.ITEM_CLONEGUN, ENT_TYPE.ITEM_HOUYIBOW, ENT_TYPE.ITEM_WOODEN_SHIELD, ENT_TYPE.ITEM_LANDMINE, ENT_TYPE.ITEM_SNAP_TRAP} --scepter, vlads cape and the swords don't work
+local all_shop_items = join(shop_items, extra_shop_items)
+local shop_guns = {ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CROSSBOW}
+local all_shop_ents = join(all_shop_items, shop_guns)
+--local shop_rooms = {ROOM_TEMPLATE.SHOP, ROOM_TEMPLATE.SHOP_LEFT, ROOM_TEMPLATE.CURIOSHOP, ROOM_TEMPLATE.CURIOSHOP_LEFT, ROOM_TEMPLATE.CAVEMANSHOP, ROOM_TEMPLATE.CAVEMANSHOP_LEFT}
+
+local function new_shop()
+    return {
+        ["common"] = {},
+        ["low"] = {},
+        ["lower"] = {}
+    }
+end
+local custom_types_shop = {new_shop(), new_shop(), new_shop(), new_shop(), new_shop(), new_shop(), [0] = new_shop(), [13] = new_shop} --SHOP_TYPE
+local custom_types_tun_shop = new_shop()
+local custom_types_caveman_shop = new_shop()
+local custom_shop_items_set = false --if the set_pre_entity_spawn for custom shop items was already set
+
+module.CHANCE = { --chance type
+    ["COMMON"] = "common",
+    ["LOW"] = "low",
+    ["LOWER"] = "lower"
+}
+
+local SHOP_ROOM_TYPES = { --SHOP_TYPE
+    ["GENERAL_STORE"] = 0,
+    ["CLOTHING_SHOP"] = 1,
+    ["WEAPON_SHOP"] = 2,
+    ["SPECIALTY_SHOP"] = 3,
+    ["HIRED_HAND_SHOP"] = 4,
+    ["PET_SHOP"] = 5,
+    ["DICE_SHOP"] = 6,
+    ["TUSK_DICE_SHOP"] = 13,
+    ["TUN"] = 77,
+    ["CAVEMAN"] = 79
+}
+
+module.ALL_SHOPS = {SHOP_ROOM_TYPES.GENERAL_STORE, SHOP_ROOM_TYPES.CLOTHING_SHOP, SHOP_ROOM_TYPES.WEAPON_SHOP, SHOP_ROOM_TYPES.SPECIALTY_SHOP, SHOP_ROOM_TYPES.HIRED_HAND_SHOP, SHOP_ROOM_TYPES.PET_SHOP, SHOP_ROOM_TYPES.DICE_SHOP, SHOP_ROOM_TYPES.TUSK_DICE_SHOP, SHOP_ROOM_TYPES.TUN, SHOP_ROOM_TYPES.CAVEMAN}
 
 local function set_transition_info(c_type_id, data, slot, mounted) --mounted: false = being held
     table.insert(custom_entities_t_info,
@@ -311,7 +357,79 @@ function module.set_custom_entity(uid, custom_ent_id)
     custom_types[custom_ent_id].entities[uid] = custom_types[custom_ent_id].set(ent)
 end
 
+local function get_custom_item(custom_types_table)
+    if #custom_types_table == 0 then
+        return
+    end
+    local custom_type_id = prng:random_index(#custom_types_table, PRNG_CLASS.LEVEL_DECO)
+    for i,v in ipairs(custom_types) do
+        messpect(i)
+    end
+    messpect('id: ', custom_type_id, "type", type(custom_types[custom_type_id]))
+    return custom_type_id, custom_types[custom_type_id].ent_type
+end
+
+local function set_custom_item_spawn_random(shop_type, x, y, l)
+    local chance = prng:random_float(PRNG_CLASS.LEVEL_DECO)
+    local custom_type_id, entity_type
+    if chance < 0.3 then
+        custom_type_id, entity_type = get_custom_item(shop_type.common)
+    elseif chance < 0.45 then
+        custom_type_id, entity_type = get_custom_item(shop_type.low)
+    elseif chance < 0.5 then
+        custom_type_id, entity_type = get_custom_item(shop_type.lower)
+    end
+    if custom_type_id then
+        local uid = spawn_entity_nonreplaceable(entity_type, x, y, l, 0, 0)
+        module.set_custom_entity(uid, custom_type_id)
+        return uid
+    end
+end
+
+local function set_custom_shop_spawns()
+    set_pre_entity_spawn(function(type, x, y, l, overlay)
+        --messpect(type, x, y, l, overlay)
+        local rx, ry = get_room_index(x, y)
+        local roomtype = get_room_template(rx, ry, l)
+        if not overlay then
+            if roomtype == ROOM_TEMPLATE.SHOP or roomtype == ROOM_TEMPLATE.SHOP_LEFT then
+                return set_custom_item_spawn_random(custom_types_shop[state.level_gen.shop_type], x, y, l)
+            elseif roomtype == ROOM_TEMPLATE.CURIOSHOP or roomtype == ROOM_TEMPLATE.CURIOSHOP_LEFT then
+                return set_custom_item_spawn_random(custom_types_tun_shop, x, y, l)
+            elseif roomtype == ROOM_TEMPLATE.CAVEMANSHOP or roomtype == ROOM_TEMPLATE.CAVEMANSHOP_LEFT then
+                return set_custom_item_spawn_random(custom_types_caveman_shop, x, y, l)
+            end
+        end
+    end, SPAWN_TYPE.LEVEL_GEN, MASK.ITEM, all_shop_ents)
+    custom_shop_items_set = true
+end
+
+local function add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
+    if shop_type <= 13 then
+        messpect(custom_types_shop[shop_type], chance_type)
+        table.insert(custom_types_shop[shop_type][chance_type], custom_ent_id)
+    elseif shop_type == SHOP_ROOM_TYPES.TUN then
+        table.insert(custom_types_tun_shop[chance_type], custom_ent_id)
+    elseif shop_type == SHOP_ROOM_TYPES.CAVEMAN then
+        table.insert(custom_types_caveman_shop[chance_type], custom_ent_id)
+    end
+end
+
+function module.set_custom_shop_chance(custom_ent_id, chance_type, shop_types)
+    if not custom_shop_items_set then
+        set_custom_shop_spawns()
+    end
+    if type(shop_types) == "table" then
+        for _, shop_type in ipairs(shop_types) do
+            add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
+        end
+    else
+        add_custom_shop_chance(custom_ent_id, chance_type, shop_types)
+    end
+end
+
 module.custom_types = custom_types
+module.SHOP_TYPE = SHOP_ROOM_TYPES
 
 register_console_command('get_custom_types', function() return custom_types end)
 

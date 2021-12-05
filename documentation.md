@@ -31,34 +31,57 @@ make a entity to be a custom one
 ### :red_circle: void spawn_custom_entity(custom_ent_id)
 
 spawn a custom entity
-(requires ent_type on custom_ent to be used)
 
-### :red_circle: void set_custom_entity_replace_chance(custom_ent_id, ent_type, chance, spawn_type?)
+(requires ent_type on custom_ent to be set)
 
-I don't know if I will add this one.
-set the chances to make a specific entity a custom one
-
-### :red_circle: void set_custom_entity_crate_chance(custon_ent_id, chance)
+### :red_circle: void set_custom_entity_crate_chance(custon_ent_id, chance_type)
 
 set the chance of being in a crate
 
-### :red_circle: void set_custom_entity_shop_chance(custom_ent_id, chance, shop_type)
+(requires ent_type on custom_ent to be set)
 
-add chance to be in a shop
-(requires ent_type on custom_ent to be used)
+### :white_check_mark: void add_custom_shop_chance(custom_ent_id, chance_type, shop_type/s)
+
+Add chance to be in a shop or shops, use `SHOP_TYPE` (that uses SHOP_TYPE and ROOM_TEMPLATE from the scripting api) and `CHANCE` from the library
+
+The `shop_type` can be a a single value or a table of the shop types
+
+Only replaces items, not hh or mounts.
+
+(requires ent_type on custom_ent to be set)
 
 ### :red_circle: void set_custom_entity_wall_chance(custom_ent_id)
 
 add chance to be incrusted in a block
-(requires ent_type on custom_ent to be used)
 
+(requires ent_type on custom_ent to be set)
 
+### **CHANCE**
+- `COMMON` "common"
+- `LOW` "low"
+- `LOWER` lower"
+
+### **SHOP_TYPE** 
+- `GENERAL_STORE` 0
+- `CLOTHING_SHOP` 1
+- `WEAPON_SHOP` 2
+- `SPECIALTY_SHOP` 3
+- `HIRED_HAND_SHOP` 4
+- `PET_SHOP` 5
+- `DICE_SHOP` 6
+- `TUSK_DICE_SHOP` 13
+- `TUN` 77
+- `CAVEMAN` 79
+
+### ALL_SHOPS
+
+A table containing all the shop types
 
 ## Extras
 
-### :red_circle: int id set_custom_gun(function(info) set_func, function() updatefunc, function(weapon_uid, facing_left) firefunc, int cooldown, float recoil_x, float recoil_y, optional\<int\> ent_type) )
+### :white_check_mark: int id set_custom_gun(function(info) set_func, function() updatefunc, function(weapon_uid, facing_left) firefunc, int cooldown, float recoil_x, float recoil_y, optional\<int\> ent_type) )
 
-The script sets the gun cooldown to 2 to prevent the gun from shooting, then handles the cooldown with a variable.
+The script sets the gun cooldown to 60 to prevent the gun from shooting, then handles the cooldown with a variable.
 
 ### :red_circle: int id set_custom_pickup(function() set_func, function() update_holder, optional\<int\> ent_type)
 
@@ -66,24 +89,6 @@ Used for custom pickups, idk if I should add also an update function for updatin
 
 
 ### Notes for myself:
-
-example code for replacing shop items from rando2:
-
-```lua
-set_pre_entity_spawn(function(type, x, y, l, overlay)
-    local rx, ry = get_room_index(x, y)
-    local roomtype = get_room_template(rx, ry, l)
-    if has(shop_rooms, roomtype) and options.shop then
-        local eid = pick(shop_mounts)
-        local etype = get_type(eid)
-        if etype.description > 1900 then
-            etype.description = prng:random(1804, 1858)
-        end
-        return spawn_entity_nonreplaceable(eid, x, y, l, 0, 0)
-    end
-    return spawn_entity_nonreplaceable(type, x, y, l, 0, 0)
-end, SPAWN_TYPE.LEVEL_GEN, MASK.MOUNT, shop_mounts)
-```
 
 https://github.com/spelunky-fyi/overlunky/blob/main/examples/customized_crate_drops.lua
 
