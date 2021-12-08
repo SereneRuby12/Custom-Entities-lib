@@ -30,7 +30,7 @@ local function mycustom_shoot(weapon, data)
     bomb.last_owner_uid = weapon:topmost_mount().uid
 end
 
-local c_gun = c_ent_lib.new_custom_gun2(mycustom_set, mycustom_update, mycustom_shoot, 60, 0, 0, ENT_TYPE.ITEM_FREEZERAY)--0.2, 0.05, ENT_TYPE.ITEM_FREEZERAY)
+local c_gun = c_ent_lib.new_custom_gun2(mycustom_set, mycustom_update, mycustom_shoot, 60, 0, 0, ENT_TYPE.ITEM_FREEZERAY, true)--0.2, 0.05, ENT_TYPE.ITEM_FREEZERAY)
 c_ent_lib.init()
 c_ent_lib.set_custom_shop_chance(c_gun, c_ent_lib.CHANCE.COMMON, c_ent_lib.SHOP_TYPE.WEAPON_SHOP)
 messpect(c_gun)

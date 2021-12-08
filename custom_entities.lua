@@ -68,28 +68,32 @@ local weapon_info = {
         ["bullet_off_y"] = 0.099998474121094,
         ["sound"] = VANILLA_SOUND.ITEMS_SHOTGUN_FIRE,
         ["shots"] = 0,
-        ["callb_set"] = false
+        ["callb_set"] = false,
+        ["sound_callb_set"] = false
     },
     [ENT_TYPE.ITEM_FREEZERAY] = {
         ["bullet"] = ENT_TYPE.ITEM_FREEZERAYSHOT,
         ["bullet_off_y"] = 0.12000274658203,
         ["sound"] = VANILLA_SOUND.ITEMS_FREEZE_RAY,
         ["shots"] = 0,
-        ["callb_set"] = false
+        ["callb_set"] = false,
+        ["sound_callb_set"] = false
     },
     [ENT_TYPE.ITEM_PLASMACANNON] = {
         ["bullet"] = ENT_TYPE.ITEM_PLASMACANNON_SHOT,
         ["bullet_off_y"] = 0.0,
         ["sound"] = VANILLA_SOUND.ITEMS_PLASMA_CANNON,
         ["shots"] = 0,
-        ["callb_set"] = false
+        ["callb_set"] = false,
+        ["sound_callb_set"] = false
     },
     [ENT_TYPE.ITEM_CLONEGUN] = {
         ["bullet"] = ENT_TYPE.ITEM_CLONEGUNSHOT,
         ["bullet_off_y"] = 0.12000274658203,
         ["sound"] = VANILLA_SOUND.ITEMS_CLONE_GUN,
         ["shots"] = 0,
-        ["callb_set"] = false
+        ["callb_set"] = false,
+        ["sound_callb_set"] = false
     },
 }
 
@@ -407,14 +411,15 @@ local function set_custom_bullet_callback(weapon_id)
                 if c_data and c_type.bulletfunc and weapon_info[c_type.ent_type].bullet == entity_type and (c_data.not_shot and c_data.not_shot ~= 0) then
                     local weapon = get_entity(weapon_uid)
                     local holder = weapon:topmost()--topmost_mount() topmost_mount only gets the player, not shopkeepers and others
-                    set_timeout(function() messpect('has', entity_has_item_type(holder.uid, ENT_TYPE.FX_BIRDIES)) end, 1)
                     messpect(holder:is_button_pressed(BUTTON.WHIP), weapon.cooldown, 'caveman', holder.state, holder.type.id, holder.velocityy)
                     if ( (holder:is_button_pressed(BUTTON.WHIP) and holder.state ~= CHAR_STATE.DUCKING) or (holder.type.id == ENT_TYPE.MONS_CAVEMAN and holder.velocityy > 0.05 and holder.velocityy < 0.0501 and holder.state == CHAR_STATE.STANDING) ) and weapon.cooldown == 0 then
                         local wx, wy = get_position(weapon_uid)
                         messpect(wx-x, y-wy, weapon_info[weapon_id].bullet_off_y+0.001, weapon_info[weapon_id].bullet_off_y-0.001)
                         if weapon_info[weapon_id].bullet_off_y+0.001 >= y-wy and weapon_info[weapon_id].bullet_off_y-0.001 <= y-wy
                         and test_flag(weapon.flags, ENT_FLAG.FACING_LEFT) == (i <= last_left) then
-                            weapon_info[weapon_id].shots = weapon_info[weapon_id].shots + 1
+                            if c_type.mute_sound then
+                                weapon_info[weapon_id].shots = weapon_info[weapon_id].shots + 1
+                            end
                             if entity_type == ENT_TYPE.ITEM_BULLET then
                                 c_data.not_shot = c_data.not_shot - 1
                             else
@@ -435,20 +440,11 @@ local function set_custom_bullet_callback(weapon_id)
             end
         end
     end, SPAWN_TYPE.SYSTEMIC, MASK.ITEM, weapon_info[weapon_id].bullet)
-    --Crashes sometimes on OL, not on PL
-    set_vanilla_sound_callback(weapon_info[weapon_id].sound, VANILLA_SOUND_CALLBACK_TYPE.CREATED, function(soun)
-        messpect('started', weapon_id)
-        if weapon_info[weapon_id].shots > 0 then --test is weapon_id works?
-            messpect(soun)
-            soun:set_pitch(0)
-            weapon_info[weapon_id].shots = weapon_info[weapon_id].shots - 1
-        end
-    end)
     
     weapon_info[weapon_id].callb_set = true
 end
 
-function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, recoil_x, recoil_y, ent_type)
+function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, recoil_x, recoil_y, ent_type, mute_sound)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
         ["set"] = set_func,
@@ -461,11 +457,25 @@ function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, rec
         ["recoil_x"] = recoil_x,
         ["recoil_y"] = recoil_y,
         ["not_shot"] = true,
+        ["mute_sound"] = mute_sound,
         ["entities"] = {}
     }
     messpect(weapon_info[ent_type], ent_type)
     if not weapon_info[ent_type].callb_set then
         set_custom_bullet_callback(ent_type)
+    end
+    if mute_sound and not weapon_info[ent_type].sound_callb_set then
+        --Crashes sometimes on OL, not on PL
+        set_vanilla_sound_callback(weapon_info[ent_type].sound, VANILLA_SOUND_CALLBACK_TYPE.CREATED, function(sound)
+            messpect('shots', weapon_info[ent_type].shots)
+            if weapon_info[ent_type].shots > 0 then
+                sound:set_pause(true)
+                sound:stop() --probably doesn't work
+                weapon_info[ent_type].shots = weapon_info[ent_type].shots - 1
+                messpect('shots_after', weapon_info[ent_type].shots)
+            end
+        end)
+        weapon_info[ent_type].sound_callb_set = true
     end
     
     custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
