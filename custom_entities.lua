@@ -40,23 +40,24 @@ local custom_types_tun_shop = new_shop()
 local custom_types_caveman_shop = new_shop()
 local custom_shop_items_set = false --if the set_pre_entity_spawn for custom shop items was already set
 
-module.CHANCE = { --chance type
-["COMMON"] = "common",
-["LOW"] = "low",
-["LOWER"] = "lower"
+--chance type
+module.CHANCE = {
+    ["COMMON"] = "common",
+    ["LOW"] = "low",
+    ["LOWER"] = "lower"
 }
-
-local SHOP_ROOM_TYPES = { --SHOP_TYPE
-["GENERAL_STORE"] = 0,
-["CLOTHING_SHOP"] = 1,
-["WEAPON_SHOP"] = 2,
-["SPECIALTY_SHOP"] = 3,
-["HIRED_HAND_SHOP"] = 4,
-["PET_SHOP"] = 5,
-["DICE_SHOP"] = 6,
-["TUSK_DICE_SHOP"] = 13,
-["TUN"] = 77,
-["CAVEMAN"] = 79
+--SHOP_TYPE
+local SHOP_ROOM_TYPES = {
+    ["GENERAL_STORE"] = 0,
+    ["CLOTHING_SHOP"] = 1,
+    ["WEAPON_SHOP"] = 2,
+    ["SPECIALTY_SHOP"] = 3,
+    ["HIRED_HAND_SHOP"] = 4,
+    ["PET_SHOP"] = 5,
+    ["DICE_SHOP"] = 6,
+    ["TUSK_DICE_SHOP"] = 13,
+    ["TUN"] = 77,
+    ["CAVEMAN"] = 79
 }
 
 module.ALL_SHOPS = {SHOP_ROOM_TYPES.GENERAL_STORE, SHOP_ROOM_TYPES.CLOTHING_SHOP, SHOP_ROOM_TYPES.WEAPON_SHOP, SHOP_ROOM_TYPES.SPECIALTY_SHOP, SHOP_ROOM_TYPES.HIRED_HAND_SHOP, SHOP_ROOM_TYPES.PET_SHOP, SHOP_ROOM_TYPES.DICE_SHOP, SHOP_ROOM_TYPES.TUSK_DICE_SHOP, SHOP_ROOM_TYPES.TUN, SHOP_ROOM_TYPES.CAVEMAN}
@@ -71,63 +72,28 @@ local weapon_info = {
         ["shots"] = 0,
         ["callb_set"] = false
     },
-[ENT_TYPE.ITEM_FREEZERAY] = {
-    ["bullet"] = ENT_TYPE.ITEM_FREEZERAYSHOT,
-    ["bullet_off_y"] = 0.12000274658203,
-    ["sound"] = VANILLA_SOUND.ITEMS_FREEZE_RAY,
-    ["shots"] = 0,
-    ["callb_set"] = false
-},
-[ENT_TYPE.ITEM_PLASMACANNON] = {
-    ["bullet"] = ENT_TYPE.ITEM_PLASMACANNON_SHOT,
-    ["bullet_off_y"] = 0.0,
-    ["sound"] = VANILLA_SOUND.ITEMS_PLASMA_CANNON,
-    ["shots"] = 0,
-    ["callb_set"] = false
-},
-[ENT_TYPE.ITEM_CLONEGUN] = {
-    ["bullet"] = ENT_TYPE.ITEM_CLONEGUNSHOT,
-    ["bullet_off_y"] = 0.12000274658203,
-    ["sound"] = VANILLA_SOUND.ITEMS_CLONE_GUN,
-    ["shots"] = 0,
-    ["callb_set"] = false
-},
+    [ENT_TYPE.ITEM_FREEZERAY] = {
+        ["bullet"] = ENT_TYPE.ITEM_FREEZERAYSHOT,
+        ["bullet_off_y"] = 0.12000274658203,
+        ["sound"] = VANILLA_SOUND.ITEMS_FREEZE_RAY,
+        ["shots"] = 0,
+        ["callb_set"] = false
+    },
+    [ENT_TYPE.ITEM_PLASMACANNON] = {
+        ["bullet"] = ENT_TYPE.ITEM_PLASMACANNON_SHOT,
+        ["bullet_off_y"] = 0.0,
+        ["sound"] = VANILLA_SOUND.ITEMS_PLASMA_CANNON,
+        ["shots"] = 0,
+        ["callb_set"] = false
+    },
+    [ENT_TYPE.ITEM_CLONEGUN] = {
+        ["bullet"] = ENT_TYPE.ITEM_CLONEGUNSHOT,
+        ["bullet_off_y"] = 0.12000274658203,
+        ["sound"] = VANILLA_SOUND.ITEMS_CLONE_GUN,
+        ["shots"] = 0,
+        ["callb_set"] = false
+    },
 }
-
---[[local weapon_bullets = {
-    [ENT_TYPE.ITEM_SHOTGUN] = ENT_TYPE.ITEM_BULLET,
-    [ENT_TYPE.ITEM_FREEZERAY] = ENT_TYPE.ITEM_FREEZERAYSHOT,
-    [ENT_TYPE.ITEM_PLASMACANNON] = ENT_TYPE.ITEM_PLASMACANNON_SHOT,
-    [ENT_TYPE.ITEM_CLONEGUN] = ENT_TYPE.ITEM_CLONEGUNSHOT,
-}
-
-local bullet_offsety = {
-    [ENT_TYPE.ITEM_SHOTGUN] = 0.099998474121094,
-    [ENT_TYPE.ITEM_FREEZERAY] = 0.12000274658203,
-    [ENT_TYPE.ITEM_PLASMACANNON] = 0.0,
-    [ENT_TYPE.ITEM_CLONEGUN] = 0.12000274658203
-}
-
-local weapon_sounds = {
-    [ENT_TYPE.ITEM_SHOTGUN] = VANILLA_SOUND.ITEMS_SHOTGUN_FIRE,
-    [ENT_TYPE.ITEM_FREEZERAY] = VANILLA_SOUND.ITEMS_FREEZE_RAY,
-    [ENT_TYPE.ITEM_PLASMACANNON] = VANILLA_SOUND.ITEMS_PLASMA_CANNON,
-    [ENT_TYPE.ITEM_CLONEGUN] = VANILLA_SOUND.ITEMS_CLONE_GUN
-}
-
-local shot_weapon = {
-    [ENT_TYPE.ITEM_SHOTGUN] = 0,
-    [ENT_TYPE.ITEM_FREEZERAY] = 0,
-    [ENT_TYPE.ITEM_PLASMACANNON] = 0,
-    [ENT_TYPE.ITEM_CLONEGUN] = 0
-}
-
-local set_bullet_callbacks = {
-    [ENT_TYPE.ITEM_BULLET] = false,
-    [ENT_TYPE.ITEM_FREEZERAYSHOT] = false,
-    [ENT_TYPE.ITEM_PLASMACANNON_SHOT] = false,
-    [ENT_TYPE.ITEM_CLONEGUNSHOT] = false
-}]]
 
 local function set_transition_info(c_type_id, data, slot, mounted) --mounted: false = being held
     table.insert(custom_entities_t_info,
@@ -420,60 +386,6 @@ function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil
     return custom_id
 end
 
---[[
-local function set_custom_bullet_callback(ent_type)
-    messpect('set_callback', ent_type)
-    set_post_entity_spawn(function(ent)
-        set_timeout(function()
-            for i,c_type in ipairs(custom_types) do
-                messpect(ent.uid, ent.last_owner_uid, ent.owner_uid, ent:topmost_mount().uid, ent.overlay, ent.standing_on_uid)
-                
-                local holder = get_entity(ent.last_owner_uid)
-                local c_data = c_type.entities[holder.holding_uid]
-                if c_data and c_type.bulletfunc then
-                    local weapon = get_entity(holder.holding_uid)
-                    
-                    weapon.cooldown = c_type.cooldown+2
-                    local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
-                    holder.velocityx = holder.velocityx + c_type.recoil_x*recoil_dir
-                    holder.velocityy = holder.velocityy + c_type.recoil_y
-                    
-                    c_type.bulletfunc(ent, weapon, c_data) --IMPORTANT
-                end
-                
-            end
-        end, 1)
-    end, SPAWN_TYPE.SYSTEMIC, MASK.ITEM, ent_type)
-    set_bullet_callbacks[ent_type] = true
-end
-]]
---[[
-local function set_custom_bullet_callback(ent_type)
-    messpect('set_callback', ent_type)
-    set_post_entity_spawn(function(ent)
-        local x, y, l = get_position(ent.uid)
-        local freezeray = get_entities_at(ENT_TYPE.ITEM_FREEZERAY, MASK.ANY, x, y, l, 1)[1]
-        messpect('a', freezeray)
-        for _,c_type in ipairs(custom_types) do
-            
-            local c_data = c_type.entities[freezeray]
-            if c_data and c_type.bulletfunc then
-                local weapon = get_entity(freezeray)
-                local holder = weapon:topmost_mount()
-                messpect(holder:is_button_pressed(BUTTON.WHIP), holder.state ~= CHAR_STATE.DUCKING)
-                weapon.cooldown = c_type.cooldown+2
-                local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
-                holder.velocityx = holder.velocityx + c_type.recoil_x*recoil_dir
-                holder.velocityy = holder.velocityy + c_type.recoil_y
-                
-                c_type.bulletfunc(weapon, c_data) --IMPORTAN
-                ent:destroy()
-            end
-        end
-    end, SPAWN_TYPE.SYSTEMIC, MASK.ITEM, ent_type)
-    set_bullet_callbacks[ent_type] = true
-end
-]]
 local function get_entities(tabl)
     for i, uid in ipairs(tabl) do
         tabl[i] = get_entity(uid)
@@ -534,7 +446,7 @@ local function set_custom_bullet_callback(weapon_id, bullet_id)
             weapon_info[weapon_id].shots = weapon_info[weapon_id].shots - 1
         end
     end)
-
+    
     weapon_info[bullet_id].callb_set = true
 end
 
