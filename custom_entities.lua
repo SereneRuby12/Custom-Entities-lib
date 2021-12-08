@@ -62,8 +62,6 @@ local SHOP_ROOM_TYPES = {
 
 module.ALL_SHOPS = {SHOP_ROOM_TYPES.GENERAL_STORE, SHOP_ROOM_TYPES.CLOTHING_SHOP, SHOP_ROOM_TYPES.WEAPON_SHOP, SHOP_ROOM_TYPES.SPECIALTY_SHOP, SHOP_ROOM_TYPES.HIRED_HAND_SHOP, SHOP_ROOM_TYPES.PET_SHOP, SHOP_ROOM_TYPES.DICE_SHOP, SHOP_ROOM_TYPES.TUSK_DICE_SHOP, SHOP_ROOM_TYPES.TUN, SHOP_ROOM_TYPES.CAVEMAN}
 
---TODO: change to a single table
-
 local weapon_info = {
     [ENT_TYPE.ITEM_SHOTGUN] = {
         ["bullet"] = ENT_TYPE.ITEM_BULLET,
@@ -392,7 +390,7 @@ local function get_entities(tabl)
     end
 end
 
-local function set_custom_bullet_callback(weapon_id, bullet_id)
+local function set_custom_bullet_callback(weapon_id)
     messpect('set_callback', weapon_id)
     set_pre_entity_spawn(function(entity_type, x, y, layer, overlay_ent, spawn_flags)
         --horizontal offset probably isn't very useful to know cause it changes when being next to a wall
@@ -408,9 +406,9 @@ local function set_custom_bullet_callback(weapon_id, bullet_id)
                 local c_data = c_type.entities[weapon_uid]
                 if c_data and c_type.bulletfunc and weapon_info[c_type.ent_type].bullet == entity_type and (c_data.not_shot and c_data.not_shot ~= 0) then
                     local weapon = get_entity(weapon_uid)
-                    local holder = weapon:topmost()--topmost_mount()
+                    local holder = weapon:topmost()--topmost_mount() topmost_mount only gets the player, not shopkeepers and others
                     set_timeout(function() messpect('has', entity_has_item_type(holder.uid, ENT_TYPE.FX_BIRDIES)) end, 1)
-                    messpect(holder:is_button_pressed(BUTTON.WHIP), weapon.cooldown, 'caveman', holder.state, holder.type.id, holder.velocityy) --TODO: the button isn't pressed for shopkeepers, fix this
+                    messpect(holder:is_button_pressed(BUTTON.WHIP), weapon.cooldown, 'caveman', holder.state, holder.type.id, holder.velocityy)
                     if ( (holder:is_button_pressed(BUTTON.WHIP) and holder.state ~= CHAR_STATE.DUCKING) or (holder.type.id == ENT_TYPE.MONS_CAVEMAN and holder.velocityy > 0.05 and holder.velocityy < 0.0501 and holder.state == CHAR_STATE.STANDING) ) and weapon.cooldown == 0 then
                         local wx, wy = get_position(weapon_uid)
                         messpect(wx-x, y-wy, weapon_info[weapon_id].bullet_off_y+0.001, weapon_info[weapon_id].bullet_off_y-0.001)
@@ -436,7 +434,7 @@ local function set_custom_bullet_callback(weapon_id, bullet_id)
                 end
             end
         end
-    end, SPAWN_TYPE.SYSTEMIC, MASK.ITEM, bullet_id)
+    end, SPAWN_TYPE.SYSTEMIC, MASK.ITEM, weapon_info[weapon_id].bullet)
     --Crashes sometimes on OL, not on PL
     set_vanilla_sound_callback(weapon_info[weapon_id].sound, VANILLA_SOUND_CALLBACK_TYPE.CREATED, function(soun)
         messpect('started', weapon_id)
@@ -447,7 +445,7 @@ local function set_custom_bullet_callback(weapon_id, bullet_id)
         end
     end)
     
-    weapon_info[bullet_id].callb_set = true
+    weapon_info[weapon_id].callb_set = true
 end
 
 function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, recoil_x, recoil_y, ent_type)
@@ -465,10 +463,9 @@ function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, rec
         ["not_shot"] = true,
         ["entities"] = {}
     }
-    local bullet = weapon_info[ent_type].bullet
-    messpect(weapon_info[bullet].callb_set, bullet)
-    if not weapon_info[bullet].callb_set then
-        set_custom_bullet_callback(ent_type, bullet)
+    messpect(weapon_info[ent_type], ent_type)
+    if not weapon_info[ent_type].callb_set then
+        set_custom_bullet_callback(ent_type)
     end
     
     custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
