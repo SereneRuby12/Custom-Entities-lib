@@ -1,8 +1,8 @@
 meta = {
     name = "Custom Entities Library",
-    version = "0.3",
+    version = "0.5",
     author = "Estebanfer",
-    description = "A library for creating custom entities easier"
+    description = "A library for creating custom entities"
 }
 --TODO: Backpacks
 local module = {}
@@ -14,6 +14,84 @@ local custom_entities_t_info = {} --transition info
 local custom_entities_t_info_hh = {}
 local custom_entities_t_info_storage = {}
 local storage_pos = nil
+
+local function join(a, b)
+    local result = {table.unpack(a)}
+    table.move(b, 1, #b, #result + 1, result)
+    return result
+end
+
+local shop_items = {ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_SKELETON_KEY, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_METAL_SHIELD, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_PICKUP_HEDJET, ENT_TYPE.ITEM_PICKUP_ROYALJELLY, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_WOODEN_ARROW, ENT_TYPE.ITEM_PICKUP_COOKEDTURKEY}
+local extra_shop_items = {ENT_TYPE.ITEM_LIGHT_ARROW, ENT_TYPE.ITEM_PICKUP_GIANTFOOD, ENT_TYPE.ITEM_PICKUP_ELIXIR, ENT_TYPE.ITEM_PICKUP_CLOVER, ENT_TYPE.ITEM_PICKUP_SPECIALCOMPASS, ENT_TYPE.ITEM_PICKUP_UDJATEYE, ENT_TYPE.ITEM_PICKUP_KAPALA, ENT_TYPE.ITEM_PICKUP_CROWN, ENT_TYPE.ITEM_PICKUP_EGGPLANTCROWN, ENT_TYPE.ITEM_PICKUP_TRUECROWN, ENT_TYPE.ITEM_PICKUP_ANKH, ENT_TYPE.ITEM_CLONEGUN, ENT_TYPE.ITEM_HOUYIBOW, ENT_TYPE.ITEM_WOODEN_SHIELD, ENT_TYPE.ITEM_LANDMINE, ENT_TYPE.ITEM_SNAP_TRAP} --scepter, vlads cape and the swords don't work
+local all_shop_items = join(shop_items, extra_shop_items)
+local shop_guns = {ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CROSSBOW}
+local all_shop_ents = join(all_shop_items, shop_guns)
+--local shop_rooms = {ROOM_TEMPLATE.SHOP, ROOM_TEMPLATE.SHOP_LEFT, ROOM_TEMPLATE.CURIOSHOP, ROOM_TEMPLATE.CURIOSHOP_LEFT, ROOM_TEMPLATE.CAVEMANSHOP, ROOM_TEMPLATE.CAVEMANSHOP_LEFT}
+
+local function new_shop()
+    return {
+        ["common"] = {},
+        ["low"] = {},
+        ["lower"] = {}
+    }
+end
+local custom_types_shop = {new_shop(), new_shop(), new_shop(), new_shop(), new_shop(), new_shop(), [0] = new_shop(), [13] = new_shop} --SHOP_TYPE
+local custom_types_tun_shop = new_shop()
+local custom_types_caveman_shop = new_shop()
+local custom_shop_items_set = false --if the set_pre_entity_spawn for custom shop items was already set
+
+--chance type
+module.CHANCE = {
+    ["COMMON"] = "common",
+    ["LOW"] = "low",
+    ["LOWER"] = "lower"
+}
+--SHOP_TYPE
+local SHOP_ROOM_TYPES = {
+    ["GENERAL_STORE"] = 0,
+    ["CLOTHING_SHOP"] = 1,
+    ["WEAPON_SHOP"] = 2,
+    ["SPECIALTY_SHOP"] = 3,
+    ["HIRED_HAND_SHOP"] = 4,
+    ["PET_SHOP"] = 5,
+    ["DICE_SHOP"] = 6,
+    ["TUSK_DICE_SHOP"] = 13,
+    ["TUN"] = 77,
+    ["CAVEMAN"] = 79
+}
+
+module.ALL_SHOPS = {SHOP_ROOM_TYPES.GENERAL_STORE, SHOP_ROOM_TYPES.CLOTHING_SHOP, SHOP_ROOM_TYPES.WEAPON_SHOP, SHOP_ROOM_TYPES.SPECIALTY_SHOP, SHOP_ROOM_TYPES.HIRED_HAND_SHOP, SHOP_ROOM_TYPES.PET_SHOP, SHOP_ROOM_TYPES.DICE_SHOP, SHOP_ROOM_TYPES.TUSK_DICE_SHOP, SHOP_ROOM_TYPES.TUN, SHOP_ROOM_TYPES.CAVEMAN}
+
+local weapon_info = {
+    [ENT_TYPE.ITEM_SHOTGUN] = {
+        ["bullet"] = ENT_TYPE.ITEM_BULLET,
+        ["bullet_off_y"] = 0.099998474121094,
+        ["sound"] = VANILLA_SOUND.ITEMS_SHOTGUN_FIRE,
+        ["shots"] = 0,
+        ["callb_set"] = false
+    },
+    [ENT_TYPE.ITEM_FREEZERAY] = {
+        ["bullet"] = ENT_TYPE.ITEM_FREEZERAYSHOT,
+        ["bullet_off_y"] = 0.12000274658203,
+        ["sound"] = VANILLA_SOUND.ITEMS_FREEZE_RAY,
+        ["shots"] = 0,
+        ["callb_set"] = false
+    },
+    [ENT_TYPE.ITEM_PLASMACANNON] = {
+        ["bullet"] = ENT_TYPE.ITEM_PLASMACANNON_SHOT,
+        ["bullet_off_y"] = 0.0,
+        ["sound"] = VANILLA_SOUND.ITEMS_PLASMA_CANNON,
+        ["shots"] = 0,
+        ["callb_set"] = false
+    },
+    [ENT_TYPE.ITEM_CLONEGUN] = {
+        ["bullet"] = ENT_TYPE.ITEM_CLONEGUNSHOT,
+        ["bullet_off_y"] = 0.12000274658203,
+        ["sound"] = VANILLA_SOUND.ITEMS_CLONE_GUN,
+        ["shots"] = 0,
+        ["callb_set"] = false
+    },
+}
 
 local function set_transition_info(c_type_id, data, slot, mounted) --mounted: false = being held
     table.insert(custom_entities_t_info,
@@ -68,7 +146,7 @@ local function update_customs()
 end
 
 local function get_holder_player(ent) -- or hh
-    local holder = ent:topmost()
+    local holder = ent:topmost_mount()
     if holder == ent then
         return nil
     elseif holder.type.search_flags == MASK.PLAYER or holder.type.search_flags == MASK.MOUNT then
@@ -269,9 +347,222 @@ function module.new_custom_entity(set_func, update_func, is_item, is_mount, opt_
     return custom_id
 end
 
+function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil_x, recoil_y, opt_ent_type)
+    local custom_id = #custom_types + 1
+    custom_types[custom_id] = {
+        ["set"] = set_func,
+        ["update_callback"] = update_func,
+        ["is_item"] = true,
+        ["is_mount"] = false,
+        ["ent_type"] = opt_ent_type,
+        ["shoot"] = firefunc,
+        ["cooldown"] = cooldown,
+        ["recoil_x"] = recoil_x,
+        ["recoil_y"] = recoil_y,
+        ["entities"] = {}
+    }
+    custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+        ent.cooldown = math.max(ent.cooldown, 2)
+        local holder = ent:topmost_mount()
+        if holder ~= ent then
+            local holder_input = read_input(holder.uid)
+            if holder:is_button_pressed(BUTTON.WHIP) and ent.cooldown == 2 and holder.state ~= CHAR_STATE.DUCKING then
+                ent.cooldown = c_type.cooldown+2
+                local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
+                holder.velocityx = holder.velocityx + c_type.recoil_x*recoil_dir
+                holder.velocityy = holder.velocityy + c_type.recoil_y
+                c_type.shoot(ent, c_data)
+            end
+        end
+        c_type.update_callback(ent, c_data)
+        if is_portal then
+            if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
+                c_data.last_holder = get_holder_player(ent)
+            end
+        end
+    end
+    return custom_id
+end
+
+local function get_entities(tabl)
+    for i, uid in ipairs(tabl) do
+        tabl[i] = get_entity(uid)
+    end
+end
+
+local function set_custom_bullet_callback(weapon_id)
+    messpect('set_callback', weapon_id)
+    set_pre_entity_spawn(function(entity_type, x, y, layer, overlay_ent, spawn_flags)
+        --horizontal offset probably isn't very useful to know cause it changes when being next to a wall
+        --freezeray and clonegun bullet offset: 0.5, ~0.12
+        --plasmacannon: ~0.3545, 0.0
+        --shotgun: ~0.35, ~0.1
+        local weapons_left = get_entities_at(weapon_id, MASK.ITEM, x-0.25, y-0.12, layer, 0.4)
+        local last_left = #weapons_left
+        local weapons = join(weapons_left, get_entities_at(weapon_id, MASK.ITEM, x+0.25, y-0.12, layer, 0.4))
+        messpect('a', #weapons_left, #weapons)
+        for _,c_type in ipairs(custom_types) do
+            for i, weapon_uid in ipairs(weapons) do
+                local c_data = c_type.entities[weapon_uid]
+                if c_data and c_type.bulletfunc and weapon_info[c_type.ent_type].bullet == entity_type and (c_data.not_shot and c_data.not_shot ~= 0) then
+                    local weapon = get_entity(weapon_uid)
+                    local holder = weapon:topmost()--topmost_mount() topmost_mount only gets the player, not shopkeepers and others
+                    set_timeout(function() messpect('has', entity_has_item_type(holder.uid, ENT_TYPE.FX_BIRDIES)) end, 1)
+                    messpect(holder:is_button_pressed(BUTTON.WHIP), weapon.cooldown, 'caveman', holder.state, holder.type.id, holder.velocityy)
+                    if ( (holder:is_button_pressed(BUTTON.WHIP) and holder.state ~= CHAR_STATE.DUCKING) or (holder.type.id == ENT_TYPE.MONS_CAVEMAN and holder.velocityy > 0.05 and holder.velocityy < 0.0501 and holder.state == CHAR_STATE.STANDING) ) and weapon.cooldown == 0 then
+                        local wx, wy = get_position(weapon_uid)
+                        messpect(wx-x, y-wy, weapon_info[weapon_id].bullet_off_y+0.001, weapon_info[weapon_id].bullet_off_y-0.001)
+                        if weapon_info[weapon_id].bullet_off_y+0.001 >= y-wy and weapon_info[weapon_id].bullet_off_y-0.001 <= y-wy
+                        and test_flag(weapon.flags, ENT_FLAG.FACING_LEFT) == (i <= last_left) then
+                            weapon_info[weapon_id].shots = weapon_info[weapon_id].shots + 1
+                            if entity_type == ENT_TYPE.ITEM_BULLET then
+                                c_data.not_shot = c_data.not_shot - 1
+                            else
+                                c_data.not_shot = false
+                            end
+                            if c_type.cooldown then
+                                weapon.cooldown = c_type.cooldown+2
+                            end
+                            local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
+                            holder.velocityx = holder.velocityx + c_type.recoil_x*recoil_dir
+                            holder.velocityy = holder.velocityy + c_type.recoil_y
+                            
+                            c_type.bulletfunc(weapon, c_data)
+                            return spawn_entity(ENT_TYPE.ITEM_BULLET, 0, 0, layer, 0, 0)
+                        end
+                    end
+                end
+            end
+        end
+    end, SPAWN_TYPE.SYSTEMIC, MASK.ITEM, weapon_info[weapon_id].bullet)
+    --Crashes sometimes on OL, not on PL
+    set_vanilla_sound_callback(weapon_info[weapon_id].sound, VANILLA_SOUND_CALLBACK_TYPE.CREATED, function(soun)
+        messpect('started', weapon_id)
+        if weapon_info[weapon_id].shots > 0 then --test is weapon_id works?
+            messpect(soun)
+            soun:set_pitch(0)
+            weapon_info[weapon_id].shots = weapon_info[weapon_id].shots - 1
+        end
+    end)
+    
+    weapon_info[weapon_id].callb_set = true
+end
+
+function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, recoil_x, recoil_y, ent_type)
+    local custom_id = #custom_types + 1
+    custom_types[custom_id] = {
+        ["set"] = set_func,
+        ["update_callback"] = update_func,
+        ["is_item"] = true,
+        ["is_mount"] = false,
+        ["ent_type"] = ent_type,
+        ["bulletfunc"] = bulletfunc,
+        ["cooldown"] = cooldown,
+        ["recoil_x"] = recoil_x,
+        ["recoil_y"] = recoil_y,
+        ["not_shot"] = true,
+        ["entities"] = {}
+    }
+    messpect(weapon_info[ent_type], ent_type)
+    if not weapon_info[ent_type].callb_set then
+        set_custom_bullet_callback(ent_type)
+    end
+    
+    custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+        if ent.type.id == ENT_TYPE.ITEM_SHOTGUN then
+            c_data.not_shot = 6
+        else
+            c_data.not_shot = true
+        end
+        c_type.update_callback(ent, c_data)
+        if is_portal then
+            if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
+                c_data.last_holder = get_holder_player(ent)
+            end
+        end
+    end
+    return custom_id
+end
+
 function module.set_custom_entity(uid, custom_ent_id)
     local ent = get_entity(uid)
     custom_types[custom_ent_id].entities[uid] = custom_types[custom_ent_id].set(ent)
 end
+
+local function get_custom_item(custom_types_table)
+    if #custom_types_table == 0 then
+        return
+    end
+    local custom_type_id = prng:random_index(#custom_types_table, PRNG_CLASS.LEVEL_DECO)
+    for i,v in ipairs(custom_types) do
+        messpect(i)
+    end
+    messpect('id: ', custom_type_id, "type", type(custom_types[custom_type_id]))
+    return custom_type_id, custom_types[custom_type_id].ent_type
+end
+
+local function set_custom_item_spawn_random(shop_type, x, y, l)
+    local chance = prng:random_float(PRNG_CLASS.LEVEL_DECO)
+    local custom_type_id, entity_type
+    if chance < 0.3 then
+        custom_type_id, entity_type = get_custom_item(shop_type.common)
+    elseif chance < 0.45 then
+        custom_type_id, entity_type = get_custom_item(shop_type.low)
+    elseif chance < 0.5 then
+        custom_type_id, entity_type = get_custom_item(shop_type.lower)
+    end
+    if custom_type_id then
+        local uid = spawn_entity_nonreplaceable(entity_type, x, y, l, 0, 0)
+        module.set_custom_entity(uid, custom_type_id)
+        return uid
+    end
+end
+
+local function set_custom_shop_spawns()
+    set_pre_entity_spawn(function(type, x, y, l, overlay)
+        --messpect(type, x, y, l, overlay)
+        local rx, ry = get_room_index(x, y)
+        local roomtype = get_room_template(rx, ry, l)
+        if not overlay then
+            if roomtype == ROOM_TEMPLATE.SHOP or roomtype == ROOM_TEMPLATE.SHOP_LEFT then
+                return set_custom_item_spawn_random(custom_types_shop[state.level_gen.shop_type], x, y, l)
+            elseif roomtype == ROOM_TEMPLATE.CURIOSHOP or roomtype == ROOM_TEMPLATE.CURIOSHOP_LEFT then
+                return set_custom_item_spawn_random(custom_types_tun_shop, x, y, l)
+            elseif roomtype == ROOM_TEMPLATE.CAVEMANSHOP or roomtype == ROOM_TEMPLATE.CAVEMANSHOP_LEFT then
+                return set_custom_item_spawn_random(custom_types_caveman_shop, x, y, l)
+            end
+        end
+    end, SPAWN_TYPE.LEVEL_GEN, MASK.ITEM, all_shop_ents)
+    custom_shop_items_set = true
+end
+
+local function add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
+    if shop_type <= 13 then
+        messpect(custom_types_shop[shop_type], chance_type)
+        table.insert(custom_types_shop[shop_type][chance_type], custom_ent_id)
+    elseif shop_type == SHOP_ROOM_TYPES.TUN then
+        table.insert(custom_types_tun_shop[chance_type], custom_ent_id)
+    elseif shop_type == SHOP_ROOM_TYPES.CAVEMAN then
+        table.insert(custom_types_caveman_shop[chance_type], custom_ent_id)
+    end
+end
+
+function module.set_custom_shop_chance(custom_ent_id, chance_type, shop_types)
+    if not custom_shop_items_set then
+        set_custom_shop_spawns()
+    end
+    if type(shop_types) == "table" then
+        for _, shop_type in ipairs(shop_types) do
+            add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
+        end
+    else
+        add_custom_shop_chance(custom_ent_id, chance_type, shop_types)
+    end
+end
+
+module.custom_types = custom_types
+module.SHOP_TYPE = SHOP_ROOM_TYPES
+
+--register_console_command('get_custom_types', function() return custom_types end)
 
 return module
