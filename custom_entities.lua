@@ -1,6 +1,6 @@
 meta = {
     name = "Custom Entities Library",
-    version = "0.5",
+    version = "0.6",
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
@@ -28,17 +28,24 @@ local shop_guns = {ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.I
 local all_shop_ents = join(all_shop_items, shop_guns)
 --local shop_rooms = {ROOM_TEMPLATE.SHOP, ROOM_TEMPLATE.SHOP_LEFT, ROOM_TEMPLATE.CURIOSHOP, ROOM_TEMPLATE.CURIOSHOP_LEFT, ROOM_TEMPLATE.CAVEMANSHOP, ROOM_TEMPLATE.CAVEMANSHOP_LEFT}
 
-local function new_shop()
+local function new_chances()
     return {
         ["common"] = {},
         ["low"] = {},
         ["lower"] = {}
     }
 end
-local custom_types_shop = {new_shop(), new_shop(), new_shop(), new_shop(), new_shop(), new_shop(), [0] = new_shop(), [13] = new_shop} --SHOP_TYPE
-local custom_types_tun_shop = new_shop()
-local custom_types_caveman_shop = new_shop()
+local custom_types_shop = {new_chances(), new_chances(), new_chances(), new_chances(), new_chances(), new_chances(), [0] = new_chances(), [13] = new_chances} --SHOP_TYPE
+local custom_types_tun_shop = new_chances()
+local custom_types_caveman_shop = new_chances()
 local custom_shop_items_set = false --if the set_pre_entity_spawn for custom shop items was already set
+
+local custom_types_container = {
+    [ENT_TYPE.ITEM_CRATE] = new_chances(),
+    [ENT_TYPE.ITEM_PRESENT] = new_chances(),
+    [ENT_TYPE.ITEM_GHIST_PRESENT] = new_chances()
+}
+local custom_container_items_set = false
 
 --chance type
 module.CHANCE = {
@@ -511,16 +518,21 @@ local function get_custom_item(custom_types_table)
     return custom_type_id, custom_types[custom_type_id].ent_type
 end
 
-local function set_custom_item_spawn_random(shop_type, x, y, l)
+local function get_custom_item_from_chances(chances_table)
     local chance = prng:random_float(PRNG_CLASS.LEVEL_DECO)
     local custom_type_id, entity_type
     if chance < 0.3 then
-        custom_type_id, entity_type = get_custom_item(shop_type.common)
+        custom_type_id, entity_type = get_custom_item(chances_table.common)
     elseif chance < 0.45 then
-        custom_type_id, entity_type = get_custom_item(shop_type.low)
+        custom_type_id, entity_type = get_custom_item(chances_table.low)
     elseif chance < 0.5 then
-        custom_type_id, entity_type = get_custom_item(shop_type.lower)
+        custom_type_id, entity_type = get_custom_item(chances_table.lower)
     end
+    return custom_type_id, entity_type
+end
+
+local function set_custom_item_spawn_random(shop_type, x, y, l)
+    local custom_type_id, entity_type = get_custom_item_from_chances(shop_type)
     if custom_type_id then
         local uid = spawn_entity_nonreplaceable(entity_type, x, y, l, 0, 0)
         module.set_custom_entity(uid, custom_type_id)
@@ -557,7 +569,7 @@ local function add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
     end
 end
 
-function module.set_custom_shop_chance(custom_ent_id, chance_type, shop_types)
+function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types)
     if not custom_shop_items_set then
         set_custom_shop_spawns()
     end
@@ -567,6 +579,38 @@ function module.set_custom_shop_chance(custom_ent_id, chance_type, shop_types)
         end
     else
         add_custom_shop_chance(custom_ent_id, chance_type, shop_types)
+    end
+end
+
+local function set_custom_container_spawns()
+    set_post_entity_spawn(function(crate)
+        local function customize_drop(crate, killer_or_opener)
+            local custom_type_id, entity_type = get_custom_item_from_chances(custom_types_container[crate.type.id])
+            if custom_type_id then
+                local cb
+                set_contents(crate.uid, entity_type)
+                cb = set_post_entity_spawn(function(ent)
+                    module.set_custom_entity(ent.uid, custom_type_id)
+                    clear_callback(cb)
+                end, SPAWN_TYPE.ANY, MASK.ANY, crate.inside)
+            end
+        end
+        set_on_kill(crate.uid, customize_drop)
+        set_on_open(crate.uid, customize_drop)
+    end, SPAWN_TYPE.ANY, MASK.ANY, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_GHIST_PRESENT})
+    custom_container_items_set = true
+end
+
+function module.add_custom_container_chance(custom_ent_id, chance_type, container_types)
+    if not custom_container_items_set then
+        set_custom_container_spawns()
+    end
+    if type(container_types) == "table" then
+        for _, container_type in ipairs(container_types) do
+            table.insert(custom_types_container[container_type][chance_type], custom_ent_id)
+        end
+    else
+        table.insert(custom_types_container[container_types][chance_type], custom_ent_id)
     end
 end
 

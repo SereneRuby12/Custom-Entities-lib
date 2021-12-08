@@ -34,9 +34,11 @@ spawn a custom entity
 
 (requires ent_type on custom_ent to be set)
 
-### :red_circle: void set_custom_entity_crate_chance(custon_ent_id, chance_type)
+### :white_check_mark: void add_custom_container_chance(custon_ent_id, chance_type, container_type/s)
 
-set the chance of being in a crate
+set the chance of being in a container (only crate, present and ghist present).
+
+The `container_type` can be a a single value or a table of the entity types, use ENT_TYPE.
 
 (requires ent_type on custom_ent to be set)
 

@@ -58,8 +58,8 @@ local c_gun2 = c_ent_lib.new_custom_gun2(mycustom_set2, mycustom_update2, mycust
 
 
 c_ent_lib.init()
-c_ent_lib.set_custom_shop_chance(c_gun, c_ent_lib.CHANCE.COMMON, c_ent_lib.SHOP_TYPE.WEAPON_SHOP)
-c_ent_lib.set_custom_shop_chance(c_gun2, c_ent_lib.CHANCE.COMMON, c_ent_lib.SHOP_TYPE.WEAPON_SHOP)
+c_ent_lib.add_custom_shop_chance(c_gun, c_ent_lib.CHANCE.COMMON, c_ent_lib.SHOP_TYPE.WEAPON_SHOP)
+c_ent_lib.add_custom_shop_chance(c_gun2, c_ent_lib.CHANCE.COMMON, c_ent_lib.SHOP_TYPE.WEAPON_SHOP)
 messpect(c_gun)
 
 set_callback(function()
