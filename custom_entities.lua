@@ -481,7 +481,8 @@ end
 
 local function spawn_replacement(ent, custom_id)
     local x, y, l = get_position(ent.uid)
-    local replacement_uid = spawn(custom_types[custom_id].ent_type, x, y, l, 0, 0)
+    local vx, vy = get_velocity(ent.uid)
+    local replacement_uid = spawn(custom_types[custom_id].ent_type, x, y, l, vx, vy)
     local replacement = get_entity(replacement_uid)
     module.set_custom_entity(replacement_uid, custom_id)
     if ent.overlay then
@@ -491,11 +492,11 @@ local function spawn_replacement(ent, custom_id)
     return replacement
 end
 
-function module.new_custom_purchasable_back(set_func, update_func, animation_frame, toreplace_custom_id, flamable)
+function module.new_custom_purchasable_back(set_func, update_func, animation_frame, toreplace_custom_id, flammable)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
         ["update_callback"] = update_func,
-        ["ent_type"] = ENT_TYPE.ITEM_PICKUP_PASTE,
+        ["ent_type"] = ENT_TYPE.ITEM_ROCK,
         ["entities"] = {}
     }
     custom_types[custom_id].set = function(ent)
@@ -503,7 +504,7 @@ function module.new_custom_purchasable_back(set_func, update_func, animation_fra
         ent.hitboxy = 0.35
         ent.offsety = -0.03
         ent.animation_frame = animation_frame
-        if flamable then
+        if flammable then
             ent.flags = clr_flag(ent.flags, ENT_FLAG.TAKE_NO_DAMAGE)
         end
         ent.flags = set_flag(ent.flags, ENT_FLAG.DEAD)
