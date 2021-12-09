@@ -40,7 +40,7 @@ local function new_chances()
         ["lower"] = {}
     }
 end
-local custom_types_shop = {new_chances(), new_chances(), new_chances(), new_chances(), new_chances(), new_chances(), [0] = new_chances(), [13] = new_chances} --SHOP_TYPE
+local custom_types_shop = {new_chances(), new_chances(), new_chances(), new_chances(), new_chances(), new_chances(), [0] = new_chances(), [13] = new_chances()} --SHOP_TYPE
 local custom_types_tun_shop = new_chances()
 local custom_types_caveman_shop = new_chances()
 local custom_shop_items_set = false --if the set_pre_entity_spawn for custom shop items was already set
@@ -471,9 +471,53 @@ function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, rec
         end
         c_type.update_callback(ent, c_data)
         if is_portal then
-            if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
+            if ent.state ~= 24 and ent.last_state ~= 24 then
                 c_data.last_holder = ent.overlay
             end
+        end
+    end
+    return custom_id
+end
+
+local function spawn_replacement(ent, custom_id)
+    local x, y, l = get_position(ent.uid)
+    local replacement_uid = spawn(custom_types[custom_id].ent_type, x, y, l, 0, 0)
+    local replacement = get_entity(replacement_uid)
+    module.set_custom_entity(replacement_uid, custom_id)
+    if ent.overlay then
+        ent.overlay:pick_up(replacement)
+    end
+    ent:destroy()
+    return replacement
+end
+
+function module.new_custom_purchasable_back(set_func, update_func, animation_frame, toreplace_custom_id, flamable)
+    local custom_id = #custom_types + 1
+    custom_types[custom_id] = {
+        ["update_callback"] = update_func,
+        ["ent_type"] = ENT_TYPE.ITEM_PICKUP_PASTE,
+        ["entities"] = {}
+    }
+    custom_types[custom_id].set = function(ent)
+        ent.hitboxx = 0.3
+        ent.hitboxy = 0.35
+        ent.offsety = -0.03
+        ent.animation_frame = animation_frame
+        if flamable then
+            ent.flags = clr_flag(ent.flags, ENT_FLAG.TAKE_NO_DAMAGE)
+        end
+        ent.flags = set_flag(ent.flags, ENT_FLAG.DEAD)
+        return set_func(ent)
+    end
+    custom_types[custom_id].update = function(ent, c_data, c_type)
+        if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
+            spawn_replacement(ent, toreplace_custom_id)
+            c_data = nil
+        elseif ent.onfire_effect_timer > 0 then
+            spawn_replacement(ent, toreplace_custom_id):light_on_fire()
+            c_data = nil
+        else
+            c_type.update_callback(ent, c_data)
         end
     end
     return custom_id
@@ -488,9 +532,7 @@ local function get_custom_item(custom_types_table)
     if #custom_types_table == 0 then
         return
     end
-    local custom_type_id = prng:random_index(#custom_types_table, PRNG_CLASS.LEVEL_DECO)
-    for i,v in ipairs(custom_types) do
-    end
+    local custom_type_id = custom_types_table[prng:random_index(#custom_types_table, PRNG_CLASS.LEVEL_DECO)]
     return custom_type_id, custom_types[custom_type_id].ent_type
 end
 

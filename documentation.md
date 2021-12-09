@@ -100,6 +100,12 @@ It can be used by any entity capable of using weapons (Including shopkeepers, hi
 
 Using a shotgun will generate 6 bullets, calling the bulletfunc 6 times and aplying the recoil 6 times, so be careful if you apply an extra recoil to shotguns.
 
+### :white_check_mark: int id new_custom_purchasable_back(function(entity) set_func, function(entity, custom_ent_info) updatefunc, int animation_frame, int toreplace_custom_id, bool flammable)
+
+(WIP) Spawns a pickup (paste), and changes some of the properties to make it look like a backpack.
+
+The custom item that will replace it must have a ent_type assinged.
+
 ### :red_circle: int id set_custom_pickup(function() set_func, function() update_holder, optional\<int\> ent_type)
 
 Used for custom pickups, idk if I should add also an update function for updating the item itself.
