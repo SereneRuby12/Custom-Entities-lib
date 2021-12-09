@@ -155,21 +155,9 @@ local function update_customs()
             if ent then
                 c_type.update(ent, c_data, c_type, is_portal)
             else
-                c_type[uid] = nil
+                c_type.entities[uid] = nil
             end
         end
-    end
-end
-
-local function get_holder_player(ent) -- or hh
-    local holder = ent:topmost_mount()
-    if holder == ent then
-        return nil
-    elseif holder.type.search_flags == MASK.PLAYER or holder.type.search_flags == MASK.MOUNT then
-        if holder.type.search_flags == MASK.MOUNT then --if the topmost is a mount, that means the true holder is the one riding it
-            holder = get_entity(holder.rider_uid)
-        end
-        return holder
     end
 end
 
@@ -249,7 +237,7 @@ function module.init(game_frame)
                         if not ent or ent.state == 24 or ent.last_state == 24 then
                             holder = c_data.last_holder
                         else
-                            holder = get_holder_player(ent)
+                            holder = ent.overlay
                         end
                         if holder then
                             if holder:worn_backitem() == uid then
@@ -269,7 +257,7 @@ function module.init(game_frame)
                             holder = c_data.last_holder
                             rider_uid = c_data.last_rider_uid
                         else
-                            holder = get_holder_player(ent)
+                            holder = ent.overlay
                             rider_uid = ent.rider_uid
                         end
                         if holder then
@@ -283,26 +271,6 @@ function module.init(game_frame)
                             if holder and holder.type.search_flags == MASK.PLAYER then
                                 set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.MOUNT)
                             end
-                        end
-                    elseif c_type.carry_type == CARRY_TYPE.BACK then
-                        local ent = get_entity(uid)
-                        local holder, wearer
-                        if not ent or ent.state == 24 or ent.last_state == 24 then
-                            holder = c_data.last_holder
-                            wearer = c_data.last_wearer
-                        else
-                            holder = get_holder_player(ent)
-                        end
-                        if holder then
-                            if holder:worn_backitem() == uid then
-                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.BACK)
-                            elseif holder.inventory.player_slot == -1 then
-                                set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
-                            else
-                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
-                            end
-                        elseif ent and is_storage_floor_there and ent.standing_on_uid and get_entity(ent.standing_on_uid).type.id == ENT_TYPE.FLOOR_STORAGE then
-                            set_transition_info_storage(c_id, c_data, ent.type.id)
                         end
                     end
                 end
@@ -355,7 +323,7 @@ function module.new_custom_entity(set_func, update_func, carry_type, opt_ent_typ
             c_type.update_callback(ent, c_data)
             if is_portal then
                 if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
-                    c_data.last_holder = get_holder_player(ent)
+                    c_data.last_holder = ent.overlay
                 end
             end
         end
@@ -364,7 +332,7 @@ function module.new_custom_entity(set_func, update_func, carry_type, opt_ent_typ
             c_type.update_callback(ent, c_data)
             if is_portal then
                 if ent.state ~= 24 and ent.last_state ~= 24 then
-                    c_data.last_holder = get_holder_player(ent)
+                    c_data.last_holder = ent.overlay
                     c_data.last_rider_uid = ent.rider_uid
                 end
             end
@@ -406,7 +374,7 @@ function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil
         c_type.update_callback(ent, c_data)
         if is_portal then
             if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
-                c_data.last_holder = get_holder_player(ent)
+                c_data.last_holder = ent.overlay
             end
         end
     end
@@ -433,8 +401,8 @@ local function set_custom_bullet_callback(weapon_id)
                 local c_data = c_type.entities[weapon_uid]
                 if c_data and c_type.bulletfunc and weapon_info[c_type.ent_type].bullet == entity_type and (c_data.not_shot and c_data.not_shot ~= 0) then
                     local weapon = get_entity(weapon_uid)
-                    local holder = weapon:topmost()--topmost_mount() topmost_mount only gets the player, not shopkeepers and others
-                    if ( (holder:is_button_pressed(BUTTON.WHIP) and holder.state ~= CHAR_STATE.DUCKING) or (holder.type.id == ENT_TYPE.MONS_CAVEMAN and holder.velocityy > 0.05 and holder.velocityy < 0.0501 and holder.state == CHAR_STATE.STANDING) ) and weapon.cooldown == 0 then
+                    local holder = weapon.overlay
+                    if holder and ( (holder:is_button_pressed(BUTTON.WHIP) and holder.state ~= CHAR_STATE.DUCKING) or (holder.type.id == ENT_TYPE.MONS_CAVEMAN and holder.velocityy > 0.05 and holder.velocityy < 0.0501 and holder.state == CHAR_STATE.STANDING) ) and weapon.cooldown == 0 then
                         local wx, wy = get_position(weapon_uid)
                         if weapon_info[weapon_id].bullet_off_y+0.001 >= y-wy and weapon_info[weapon_id].bullet_off_y-0.001 <= y-wy
                         and test_flag(weapon.flags, ENT_FLAG.FACING_LEFT) == (i <= last_left) then
@@ -504,7 +472,7 @@ function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, rec
         c_type.update_callback(ent, c_data)
         if is_portal then
             if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
-                c_data.last_holder = get_holder_player(ent)
+                c_data.last_holder = ent.overlay
             end
         end
     end
@@ -550,7 +518,6 @@ end
 
 local function set_custom_shop_spawns()
     set_pre_entity_spawn(function(type, x, y, l, overlay)
-        --messpect(type, x, y, l, overlay)
         local rx, ry = get_room_index(x, y)
         local roomtype = get_room_template(rx, ry, l)
         if not overlay then
@@ -619,6 +586,12 @@ function module.add_custom_container_chance(custom_ent_id, chance_type, containe
     else
         table.insert(custom_types_container[container_types][chance_type], custom_ent_id)
     end
+end
+
+function module.set_price(entity, base_price, inflation) --made for the set_callback, for some reason you need to wait one frame and get the entity againt to make it work
+    set_timeout(function()
+        get_entity(entity.uid).price = base_price+(state.level_count*inflation)
+    end, 1)
 end
 
 module.custom_types = custom_types

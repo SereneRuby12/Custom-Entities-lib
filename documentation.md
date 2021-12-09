@@ -56,6 +56,10 @@ add chance to be incrusted in a block
 
 (requires ent_type on custom_ent to be set)
 
+### :white_check_mark: void set_price(entity, base_price, inflation)
+
+Sets the price of an entity for the level. Use this only in the set function for custom entities, this solves an error that shows when setting the price on the first frame.
+
 ### **CHANCE**
 - `COMMON` "common"
 - `LOW` "low"
