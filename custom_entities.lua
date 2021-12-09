@@ -1,10 +1,9 @@
 meta = {
     name = "Custom Entities Library",
-    version = "0.6",
+    version = "0.7",
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
---TODO: Backpacks
 local module = {}
 local custom_types = {}
 
@@ -14,6 +13,12 @@ local custom_entities_t_info = {} --transition info
 local custom_entities_t_info_hh = {}
 local custom_entities_t_info_storage = {}
 local storage_pos = nil
+
+local CARRY_TYPE = {
+    ["HELD"] = 1,
+    ["MOUNT"] = 2,
+    ["BACK"] = 3,
+}
 
 local function join(a, b)
     local result = {table.unpack(a)}
@@ -104,13 +109,13 @@ local weapon_info = {
     },
 }
 
-local function set_transition_info(c_type_id, data, slot, mounted) --mounted: false = being held
+local function set_transition_info(c_type_id, data, slot, carry_type) --mounted: false = being held
     table.insert(custom_entities_t_info,
     {
         ["custom_type_id"] = c_type_id,
         ["data"] = data,
         ["slot"] = slot,
-        ["mounted"] = mounted
+        ["carry_type"] = carry_type
     })
 end
 
@@ -185,23 +190,28 @@ local function set_custom_ents_from_previous(companions)
         for ip,p in ipairs(players) do
             if p.inventory.player_slot == info.slot then
                 local custom_ent
-                if info.mounted then
+                if info.carry_type == CARRY_TYPE.MOUNT then
                     custom_ent = p:topmost_mount()
-                else
+                elseif info.carry_type == CARRY_TYPE.HELD then
                     custom_ent = p:get_held_entity()
+                elseif info.carry_type == CARRY_TYPE.BACK then
+                    custom_ent = get_entity(p:worn_backitem())
                 end
                 custom_types[info.custom_type_id].entities[custom_ent.uid] = custom_types[info.custom_type_id].set(custom_ent, info.data)
             end
         end
     end
-    for i, uid in ipairs(companions) do
-        local ent = get_entity(uid)
-        for _, info in pairs(custom_entities_t_info_hh) do
+    for _, info in pairs(custom_entities_t_info_hh) do
+        for i, uid in ipairs(companions) do
+            local ent = get_entity(uid)
             if ent.type.id == info.e_type and ent.linked_companion_parent ~= -1 and
             ent.health == info.hp and test_flag(ent.more_flags, ENT_MORE_FLAG.CURSED_EFFECT) == info.cursed and
             ent:is_poisoned() == info.poisoned then
                 local custom_ent = ent:get_held_entity()
-                custom_types[info.custom_type_id][custom_ent.uid] = custom_types[info.custom_type_id].set(custom_ent, info.data)
+                if custom_ent then
+                    custom_types[info.custom_type_id][custom_ent.uid] = custom_types[info.custom_type_id].set(custom_ent, info.data)
+                    break
+                end
             end
         end
     end
@@ -233,7 +243,7 @@ function module.init(game_frame)
         if state.loading == 2 and ((state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP) or state.screen_next == SCREEN.SPACESHIP) then
             for c_id,c_type in ipairs(custom_types) do
                 for uid, c_data in pairs(c_type.entities) do
-                    if c_type.is_item then
+                    if c_type.carry_type == CARRY_TYPE.HELD then
                         local ent = get_entity(uid)
                         local holder
                         if not ent or ent.state == 24 or ent.last_state == 24 then
@@ -242,16 +252,17 @@ function module.init(game_frame)
                             holder = get_holder_player(ent)
                         end
                         if holder then
-                            if holder.inventory.player_slot == -1 then
+                            if holder:worn_backitem() == uid then
+                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.BACK)
+                            elseif holder.inventory.player_slot == -1 then
                                 set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
                             else
-                                set_transition_info(c_id, c_data, holder.inventory.player_slot, false) --the bumble
+                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
                             end
                         elseif ent and is_storage_floor_there and ent.standing_on_uid and get_entity(ent.standing_on_uid).type.id == ENT_TYPE.FLOOR_STORAGE then
                             set_transition_info_storage(c_id, c_data, ent.type.id)
                         end
-                    end
-                    if c_type.is_mount then
+                    elseif c_type.carry_type == CARRY_TYPE.MOUNT then
                         local ent = get_entity(uid)
                         local holder, rider_uid
                         if not ent or ent.state == 24 or ent.last_state == 24 then
@@ -265,13 +276,33 @@ function module.init(game_frame)
                             if holder.inventory.player_slot == -1 then
                                 set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
                             else
-                                set_transition_info(c_id, c_data, holder.inventory.player_slot, false)
+                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
                             end
-                        elseif rider_uid ~= -1 then
+                        elseif rider_uid and rider_uid ~= -1 then
                             holder = get_entity(rider_uid)
-                            if holder.type.search_flags == MASK.PLAYER then
-                                set_transition_info(c_id, c_data, holder.inventory.player_slot, true)
+                            if holder and holder.type.search_flags == MASK.PLAYER then
+                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.MOUNT)
                             end
+                        end
+                    elseif c_type.carry_type == CARRY_TYPE.BACK then
+                        local ent = get_entity(uid)
+                        local holder, wearer
+                        if not ent or ent.state == 24 or ent.last_state == 24 then
+                            holder = c_data.last_holder
+                            wearer = c_data.last_wearer
+                        else
+                            holder = get_holder_player(ent)
+                        end
+                        if holder then
+                            if holder:worn_backitem() == uid then
+                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.BACK)
+                            elseif holder.inventory.player_slot == -1 then
+                                set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
+                            else
+                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
+                            end
+                        elseif ent and is_storage_floor_there and ent.standing_on_uid and get_entity(ent.standing_on_uid).type.id == ENT_TYPE.FLOOR_STORAGE then
+                            set_transition_info_storage(c_id, c_data, ent.type.id)
                         end
                     end
                 end
@@ -309,43 +340,31 @@ function module.stop()
     clear_callback(cb_post_room_gen)
 end
 
-function module.new_custom_entity(set_func, update_func, is_item, is_mount, opt_ent_type)
+function module.new_custom_entity(set_func, update_func, carry_type, opt_ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
         ["set"] = set_func,
         ["update_callback"] = update_func,
-        ["is_item"] = is_item,
-        ["is_mount"] = is_mount,
+        ["carry_type"] = carry_type,
         ["ent_type"] = opt_ent_type,
         ["entities"] = {}
     }
     
-    if is_item then
-        if is_mount then
-            custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
-                c_type.update_callback(ent, c_data)
-                if is_portal then
-                    if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
-                        c_data.last_holder = get_holder_player(ent)
-                        c_data.last_rider_uid = ent.rider_uid
-                    end
-                end
-            end
-        else
-            custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
-                c_type.update_callback(ent, c_data)
-                if is_portal then
-                    if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
-                        c_data.last_holder = get_holder_player(ent)
-                    end
-                end
-            end
-        end
-    elseif is_mount then
+    if carry_type == CARRY_TYPE.HELD then
         custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
             c_type.update_callback(ent, c_data)
             if is_portal then
                 if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
+                    c_data.last_holder = get_holder_player(ent)
+                end
+            end
+        end
+    elseif carry_type == CARRY_TYPE.MOUNT then
+        custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+            c_type.update_callback(ent, c_data)
+            if is_portal then
+                if ent.state ~= 24 and ent.last_state ~= 24 then
+                    c_data.last_holder = get_holder_player(ent)
                     c_data.last_rider_uid = ent.rider_uid
                 end
             end
@@ -363,8 +382,7 @@ function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil
     custom_types[custom_id] = {
         ["set"] = set_func,
         ["update_callback"] = update_func,
-        ["is_item"] = true,
-        ["is_mount"] = false,
+        ["carry_type"] = CARRY_TYPE.HELD,
         ["ent_type"] = opt_ent_type,
         ["shoot"] = firefunc,
         ["cooldown"] = cooldown,
@@ -377,7 +395,7 @@ function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil
         local holder = ent:topmost_mount()
         if holder ~= ent then
             local holder_input = read_input(holder.uid)
-            if holder:is_button_pressed(BUTTON.WHIP) and ent.cooldown == 2 and holder.state ~= CHAR_STATE.DUCKING then
+            if holder:is_button_pressed(BUTTON.WHIP) and ent.cooldown == 2 and holder.state ~= CHAR_STATE.DUCKING and holder.animation_frame ~= 18 then
                 ent.cooldown = c_type.cooldown+2
                 local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
                 holder.velocityx = holder.velocityx + c_type.recoil_x*recoil_dir
@@ -402,7 +420,6 @@ local function get_entities(tabl)
 end
 
 local function set_custom_bullet_callback(weapon_id)
-    messpect('set_callback', weapon_id)
     set_pre_entity_spawn(function(entity_type, x, y, layer, overlay_ent, spawn_flags)
         --horizontal offset probably isn't very useful to know cause it changes when being next to a wall
         --freezeray and clonegun bullet offset: 0.5, ~0.12
@@ -411,17 +428,14 @@ local function set_custom_bullet_callback(weapon_id)
         local weapons_left = get_entities_at(weapon_id, MASK.ITEM, x-0.25, y-0.12, layer, 0.4)
         local last_left = #weapons_left
         local weapons = join(weapons_left, get_entities_at(weapon_id, MASK.ITEM, x+0.25, y-0.12, layer, 0.4))
-        messpect('a', #weapons_left, #weapons)
         for _,c_type in ipairs(custom_types) do
             for i, weapon_uid in ipairs(weapons) do
                 local c_data = c_type.entities[weapon_uid]
                 if c_data and c_type.bulletfunc and weapon_info[c_type.ent_type].bullet == entity_type and (c_data.not_shot and c_data.not_shot ~= 0) then
                     local weapon = get_entity(weapon_uid)
                     local holder = weapon:topmost()--topmost_mount() topmost_mount only gets the player, not shopkeepers and others
-                    messpect(holder:is_button_pressed(BUTTON.WHIP), weapon.cooldown, 'caveman', holder.state, holder.type.id, holder.velocityy)
                     if ( (holder:is_button_pressed(BUTTON.WHIP) and holder.state ~= CHAR_STATE.DUCKING) or (holder.type.id == ENT_TYPE.MONS_CAVEMAN and holder.velocityy > 0.05 and holder.velocityy < 0.0501 and holder.state == CHAR_STATE.STANDING) ) and weapon.cooldown == 0 then
                         local wx, wy = get_position(weapon_uid)
-                        messpect(wx-x, y-wy, weapon_info[weapon_id].bullet_off_y+0.001, weapon_info[weapon_id].bullet_off_y-0.001)
                         if weapon_info[weapon_id].bullet_off_y+0.001 >= y-wy and weapon_info[weapon_id].bullet_off_y-0.001 <= y-wy
                         and test_flag(weapon.flags, ENT_FLAG.FACING_LEFT) == (i <= last_left) then
                             if c_type.mute_sound then
@@ -456,8 +470,7 @@ function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, rec
     custom_types[custom_id] = {
         ["set"] = set_func,
         ["update_callback"] = update_func,
-        ["is_item"] = true,
-        ["is_mount"] = false,
+        ["carry_type"] = CARRY_TYPE.HELD,
         ["ent_type"] = ent_type,
         ["bulletfunc"] = bulletfunc,
         ["cooldown"] = cooldown,
@@ -467,19 +480,16 @@ function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, rec
         ["mute_sound"] = mute_sound,
         ["entities"] = {}
     }
-    messpect(weapon_info[ent_type], ent_type)
     if not weapon_info[ent_type].callb_set then
         set_custom_bullet_callback(ent_type)
     end
     if mute_sound and not weapon_info[ent_type].sound_callb_set then
         --Crashes sometimes on OL, not on PL
         set_vanilla_sound_callback(weapon_info[ent_type].sound, VANILLA_SOUND_CALLBACK_TYPE.CREATED, function(sound)
-            messpect('shots', weapon_info[ent_type].shots)
             if weapon_info[ent_type].shots > 0 then
                 sound:set_pause(true)
                 sound:stop() --probably doesn't work
                 weapon_info[ent_type].shots = weapon_info[ent_type].shots - 1
-                messpect('shots_after', weapon_info[ent_type].shots)
             end
         end)
         weapon_info[ent_type].sound_callb_set = true
@@ -512,9 +522,7 @@ local function get_custom_item(custom_types_table)
     end
     local custom_type_id = prng:random_index(#custom_types_table, PRNG_CLASS.LEVEL_DECO)
     for i,v in ipairs(custom_types) do
-        messpect(i)
     end
-    messpect('id: ', custom_type_id, "type", type(custom_types[custom_type_id]))
     return custom_type_id, custom_types[custom_type_id].ent_type
 end
 
@@ -560,7 +568,6 @@ end
 
 local function add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
     if shop_type <= 13 then
-        messpect(custom_types_shop[shop_type], chance_type)
         table.insert(custom_types_shop[shop_type][chance_type], custom_ent_id)
     elseif shop_type == SHOP_ROOM_TYPES.TUN then
         table.insert(custom_types_tun_shop[chance_type], custom_ent_id)
@@ -616,6 +623,7 @@ end
 
 module.custom_types = custom_types
 module.SHOP_TYPE = SHOP_ROOM_TYPES
+module.CARRY_TYPE = CARRY_TYPE
 
 --register_console_command('get_custom_types', function() return custom_types end)
 
