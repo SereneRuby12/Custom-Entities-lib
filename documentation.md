@@ -12,17 +12,15 @@ inits lib callbacks, if the bool is true then the update callbacks will be calle
 
 stops lib callbacks
 
-### :white_check_mark: int id new_custom_entity(function(entity, transition_data) set_func, function(entity, custom_ent_info) updatefunc, bool is_item, bool is_mount, optional\<int\> ent_type) 
+### :white_check_mark: int id new_custom_entity(function(entity, transition_data) set_func, function(entity, custom_ent_info) updatefunc, optional<CARRY_TYPE> carry_type, optional\<int\> ent_type) 
 
 Set a new custom entity behiavour to be asigned in set_custom_entity()
 
 The function should take care of items being taken to next levels, waddler, etc.
 
-**The set function must return a table** for storing info about the entity, that will be passed to the updatefunc.
+**The set function must return a table** for storing info about the entity, that will be passed to the updatefunc and set_func if the entity can go through levels (items, mounts)
 
-Also, the spawn function recives the table of the info when passed through a level
-
-is_item and is_mount are for taking care about items going through level transition.
+For carry_type, use CARRY_TYPE.HELD or .MOUNT
 
 ### :white_check_mark: void set_custom_entity(uid, custom_ent_id)
 
@@ -34,9 +32,11 @@ spawn a custom entity
 
 (requires ent_type on custom_ent to be set)
 
-### :red_circle: void set_custom_entity_crate_chance(custon_ent_id, chance_type)
+### :white_check_mark: void add_custom_container_chance(custon_ent_id, chance_type, container_type/s)
 
-set the chance of being in a crate
+set the chance of being in a container (only crate, present and ghist present).
+
+The `container_type` can be a a single value or a table of the entity types, use ENT_TYPE.
 
 (requires ent_type on custom_ent to be set)
 

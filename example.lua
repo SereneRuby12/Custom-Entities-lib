@@ -76,9 +76,9 @@ local function custom_mount_update(ent, data)
 end
 
 c_ent_lib.init()
-local mycustom = c_ent_lib.new_custom_entity(mycustom_set, mycustom_update, false, false)
-local mycustom_item = c_ent_lib.new_custom_entity(mycustom_item_set, mycustom_item_update, true, false)
-local custom_mount = c_ent_lib.new_custom_entity(custom_mount_set, custom_mount_update, false, true)
+local mycustom = c_ent_lib.new_custom_entity(mycustom_set, mycustom_update)
+local mycustom_item = c_ent_lib.new_custom_entity(mycustom_item_set, mycustom_item_update, c_ent_lib.CARRY_TYPE.HELD)
+local custom_mount = c_ent_lib.new_custom_entity(custom_mount_set, custom_mount_update, c_ent_lib.CARRY_TYPE.MOUNT)
 set_callback(function()
     local snakes = get_entities_by_type(ENT_TYPE.MONS_SNAKE)
     for _,uid in ipairs(snakes) do
