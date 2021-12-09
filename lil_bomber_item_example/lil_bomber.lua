@@ -10,6 +10,7 @@ end
 
 local function mycustom_set(ent, data)
     ent:set_texture(lil_bomber_texture)
+    c_ent_lib.set_price(ent, 12000, 1500)
     add_custom_name(ent.uid, "Lil' Bomber")
     return {}
 end
