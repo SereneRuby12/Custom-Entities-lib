@@ -50,6 +50,11 @@ local custom_types_container = {
     [ENT_TYPE.ITEM_PRESENT] = new_chances(),
     [ENT_TYPE.ITEM_GHIST_PRESENT] = new_chances()
 }
+module.ALL_CONTAINERS = {
+    ENT_TYPE.ITEM_CRATE,
+    ENT_TYPE.ITEM_PRESENT,
+    ENT_TYPE.ITEM_GHIST_PRESENT
+}
 local custom_container_items_set = false
 
 --chance type
