@@ -11,9 +11,11 @@ local function number_to_range(num, min, max)
     return num
 end
 
-local function custom_back_set(ent, data)
+local function rainbow_cape_set(ent, data)
     ent.color.b = 0
     ent.color.g = 0
+    add_custom_name(ent.uid, "Rainbow cape")
+    c_ent_lib.set_price(ent, 10000, 1000)
     return {
         ["color_n"] = 2,
         ["vel"] = math.random()/20+0.01,
@@ -21,7 +23,7 @@ local function custom_back_set(ent, data)
     }
 end
 
-local function custom_back_update(ent, data)
+local function rainbow_cape_update(ent, data)
     local color = colors[data.color_n]
     ent.color[color] = data.up and ent.color[color] + data.vel or ent.color[color] - data.vel
     if ent.color[color] <= 0 then
@@ -35,15 +37,14 @@ local function custom_back_update(ent, data)
     end
 end
 
-c_ent_lib.init()
-local custom_back = c_ent_lib.new_custom_entity(custom_back_set, custom_back_update, c_ent_lib.CARRY_TYPE.HELD, ENT_TYPE.ITEM_CAPE)
-local custom_back_p = c_ent_lib.new_custom_purchasable_back(custom_back_set, custom_back_update, 40, custom_back, false)
-messpect(custom_back, custom_back_p)
-c_ent_lib.add_custom_shop_chance(custom_back_p, c_ent_lib.CHANCE.COMMON, c_ent_lib.ALL_SHOPS)
+c_ent_lib.init(true)
+local rainbow_cape = c_ent_lib.new_custom_entity(rainbow_cape_set, rainbow_cape_update, c_ent_lib.CARRY_TYPE.HELD, ENT_TYPE.ITEM_CAPE)
+local rainbow_cape_p = c_ent_lib.new_custom_purchasable_back(rainbow_cape_set, rainbow_cape_update, 40, rainbow_cape, false)
+
+c_ent_lib.add_custom_shop_chance(rainbow_cape_p, c_ent_lib.CHANCE.COMMON, c_ent_lib.ALL_SHOPS)
 
 set_callback(function()
     local x, y, l = get_position(players[1].uid)
     local uid = spawn(ENT_TYPE.ITEM_CAPE, x, y, l, 0, 0)
-    messpect(uid)
-    c_ent_lib.set_custom_entity(uid, custom_back)
-end, ON.LEVEL)
+    c_ent_lib.set_custom_entity(uid, rainbow_cape)
+end, ON.START)

@@ -84,6 +84,10 @@ Sets the price of an entity for the level. Use this only in the set function for
 
 A table containing all the shop types
 
+### ALL_CONTAINERS
+
+A table containing crate, present, and ghist present containers
+
 ## Extras
 
 ### :white_check_mark: int id new_custom_gun(function(entity, transition_data) set_func, function(entity, custom_ent_info) updatefunc, function(entity, facing_left) firefunc, int cooldown, float recoil_x, float recoil_y, optional\<int\> ent_type) )
@@ -102,7 +106,7 @@ Using a shotgun will generate 6 bullets, calling the bulletfunc 6 times and aply
 
 ### :white_check_mark: int id new_custom_purchasable_back(function(entity) set_func, function(entity, custom_ent_info) updatefunc, int animation_frame, int toreplace_custom_id, bool flammable)
 
-(WIP) Spawns a pickup (paste), and changes some of the properties to make it look like a backpack.
+(WIP) Spawns a rock, and changes some of the properties to make it look like a backpack, spawns the toreplace entity when the item isn't a shop item anymore (bought, shopkeeper angered, etc.)
 
 The custom item that will replace it must have a ent_type assinged.
 
