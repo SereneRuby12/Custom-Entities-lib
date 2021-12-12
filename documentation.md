@@ -104,6 +104,12 @@ It can be used by any entity capable of using weapons (Including shopkeepers, hi
 
 Using a shotgun will generate 6 bullets, calling the bulletfunc 6 times and aplying the recoil 6 times, so be careful if you apply an extra recoil to shotguns.
 
+### int id new_custom_backpack(function(entity, transition_data) set_func, function(entity, custom_ent_info, holder) updatefunc, bool flammable)
+
+Uses jetpack as base entity, sets the fuel to 0.
+
+The holder is nil if it isn't being carried on the back of a player.
+
 ### :white_check_mark: int id new_custom_purchasable_back(function(entity) set_func, function(entity, custom_ent_info) updatefunc, int animation_frame, int toreplace_custom_id, bool flammable)
 
 (WIP) Spawns a rock, and changes some of the properties to make it look like a backpack, spawns the toreplace entity when the item isn't a shop item anymore (bought, shopkeeper angered, etc.)

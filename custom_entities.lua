@@ -56,6 +56,9 @@ module.ALL_CONTAINERS = {
     ENT_TYPE.ITEM_GHIST_PRESENT
 }
 local custom_container_items_set = false
+local nonflammable_backs_callbacks_set = false
+
+local just_burnt, last_burn = 0, 0 --for non_flammable backpacks
 
 --chance type
 module.CHANCE = {
@@ -490,7 +493,7 @@ local function spawn_replacement(ent, custom_id)
     local replacement_uid = spawn(custom_types[custom_id].ent_type, x, y, l, vx, vy)
     local replacement = get_entity(replacement_uid)
     module.set_custom_entity(replacement_uid, custom_id)
-    if ent.overlay then
+    if ent.overlay and ent.overlay.type.search_flags ~= MASK.ACTIVEFLOOR then
         ent.overlay:pick_up(replacement)
     end
     ent:destroy()
@@ -524,6 +527,131 @@ function module.new_custom_purchasable_back(set_func, update_func, animation_fra
             c_data = nil
         else
             c_type.update_callback(ent, c_data)
+        end
+    end
+    return custom_id
+end
+
+local function set_nonflammable_backs_callbacks()
+    set_pre_entity_spawn(function(entity_type, x, y, layer, overlay_entity, spawn_flags)
+        if y == -123 then
+            return spawn_entity_nonreplaceable(ENT_TYPE.ITEM_ROCK, x, y, layer, 0, 0)
+        end
+    end, SPAWN_TYPE.SYSTEMIC, MASK.EXPLOSION, ENT_TYPE.FX_EXPLOSION)
+    
+    set_vanilla_sound_callback(VANILLA_SOUND.ITEMS_BACKPACK_WARN, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function(sound)
+        if just_burnt > 0 and last_burn == get_frame()-1 then
+            sound:stop()
+            sound:set_volume(0)
+            just_burnt = just_burnt - 1
+        end
+    end)
+    nonflammable_backs_callbacks_set = true
+end
+
+function module.new_custom_backpack(set_func, update_func, flammable)
+    local custom_id = #custom_types + 1
+    custom_types[custom_id] = {
+        ["update_callback"] = update_func,
+        ["carry_type"] = CARRY_TYPE.HELD,
+        ["ent_type"] = ENT_TYPE.ITEM_JETPACK,
+        ["entities"] = {}
+    }
+    if flammable then
+        custom_types[custom_id].set = set_func
+        custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+            local holder = ent.overlay
+            if holder and holder.type.search_flags == MASK.PLAYER then
+                local backitem_uid = holder:worn_backitem()
+                if backitem_uid == ent.uid then
+                    ent.fuel = 0
+                    c_type.update_callback(ent, c_data, holder)
+                    local holding = get_entity(holder.holding_uid)
+                    if holding.type.id == ENT_TYPE.ITEM_JETPACK and not c_type.entities[holding.uid] then
+                        holder:unequip_backitem()
+                        holder:pick_up(holding)
+                    end
+                elseif not c_type.entities[backitem_uid] then
+                    holder:unequip_backitem()
+                    holder:pick_up(ent)
+                end
+            else
+                c_type.update_callback(ent, c_data)
+            end
+            if is_portal then
+                if ent.state ~= 24 and ent.last_state ~= 24 then
+                    c_data.last_holder = holder
+                end
+            end
+        end
+    else
+        custom_types[custom_id].set = function(ent, c_data)
+            set_on_kill(ent.uid, function(entity) --TODO: add fx
+                move_entity(entity.uid, 0, -123, 0, 0)
+            end)
+            ent.flags = set_flag(ent.flags, ENT_FLAG.TAKE_NO_DAMAGE)
+            return set_func(ent, c_data)
+        end
+        if not nonflammable_backs_callbacks_set then
+            set_nonflammable_backs_callbacks()
+        end
+        custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+            local holder = ent.overlay
+            if holder and holder.type.search_flags == MASK.PLAYER then
+                local backitem_uid = holder:worn_backitem()
+                if backitem_uid == ent.uid then
+                    ent.fuel = 0
+                    c_type.update_callback(ent, c_data, holder)
+
+                    local holding = get_entity(holder.holding_uid)
+                    if holding and holding.type.id == ENT_TYPE.ITEM_JETPACK and not c_type.entities[holding.uid] then
+                        holder:unequip_backitem()
+                        ent.flags = clr_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
+                        holder:pick_up(holding)
+                    end
+
+                    --this helps with preventing backpack warning sounds, not sure if use this, was mainly made for preventing hoverpack behiavour
+                    if holder.state ~= CHAR_STATE.ENTERING and holder.state ~= CHAR_STATE.EXITING and holder.state ~= CHAR_STATE.CLIMBING and holder.state ~= 24 then
+                        if not test_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS) then
+                            ent.flags = set_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
+                            ent:set_draw_depth(26)
+                        else
+                            if test_flag(holder.flags, ENT_FLAG.FACING_LEFT) then
+                                ent.flags = set_flag(ent.flags, ENT_FLAG.FACING_LEFT)
+                                ent.x = 0.25
+                            else
+                                ent.flags = clr_flag(ent.flags, ENT_FLAG.FACING_LEFT)
+                                ent.x = -0.25
+                            end
+                        end
+                    elseif test_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS) then
+                        ent.flags = clr_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
+                    end
+                elseif not c_type.entities[backitem_uid] then
+                    holder:unequip_backitem()
+                    holder:pick_up(ent)
+                else
+                    c_type.update_callback(ent, c_data)
+                end
+            else
+                c_type.update_callback(ent, c_data)
+                if test_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS) then
+                    ent.flags = clr_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
+                end
+            end
+            if ent.explosion_trigger then
+                ent.explosion_trigger = false
+                ent.explosion_timer = 0
+                just_burnt = just_burnt + 1
+                last_burn = get_frame()
+            end
+            if test_flag(ent.flags, ENT_FLAG.DEAD) then
+                move_entity(ent.uid, 0, -123, 0, 0)
+            elseif is_portal then
+                if ent.state ~= 24 and ent.last_state ~= 24 then
+                    c_data.last_holder = ent.overlay
+                end
+            end
         end
     end
     return custom_id
