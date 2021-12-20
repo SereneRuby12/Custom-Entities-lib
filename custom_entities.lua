@@ -543,29 +543,6 @@ function module.new_custom_purchasable_back(set_func, update_func, toreplace_cus
     if flammable then
         custom_types[custom_id].ent_type = ENT_TYPE.ITEM_PURCHASABLE_JETPACK
         custom_types[custom_id].set = function(ent, nothing, args)
-            --[[
-            set_on_destroy(ent.uid, function(entity)
-                if entity.onfire_effect_timer == 0 then
-                    messpect('entity destroyed', custom_types[custom_id].entities[entity.uid])
-                    local possible_holder = custom_types[custom_id].entities[entity.uid].last_holder
-                    messpect(possible_holder, custom_types[custom_id].entities[entity.uid])
-                    if possible_holder then
-                        local prev_jetpacks = get_entities_by_type(ENT_TYPE.ITEM_JETPACK)
-                        set_timeout(function()
-                            for _, uid in ipairs(get_entities_by_type(ENT_TYPE.ITEM_JETPACK)) do
-                                if not has(prev_jetpacks, uid) then
-                                    local jetpack = get_entity(uid)
-                                    messpect(possible_holder, jetpack.overlay and jetpack.overlay.uid or 'nope')
-                                    if jetpack.overlay and jetpack.overlay.uid == possible_holder then
-                                        module.set_custom_entity(jetpack.uid, toreplace_custom_id)
-                                    end
-                                end
-                            end
-                        end, 1)
-                    end
-                end
-            end)
-            ]]
             set_on_destroy(ent.uid, function(entity)
                 prev_jetpacks = get_entities_by_type(ENT_TYPE.ITEM_JETPACK)
             end)
