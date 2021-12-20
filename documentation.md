@@ -12,7 +12,7 @@ inits lib callbacks, if the bool is true then the update callbacks will be calle
 
 stops lib callbacks
 
-### :white_check_mark: int id new_custom_entity(function(entity, transition_data) set_func, function(entity, custom_ent_info) updatefunc, optional<CARRY_TYPE> carry_type, optional\<int\> ent_type) 
+### :white_check_mark: int id new_custom_entity(function(entity, transition_data, args) set_func, function(entity, custom_ent_info) updatefunc, optional<CARRY_TYPE> carry_type, optional\<int\> ent_type) 
 
 Set a new custom entity behiavour to be asigned in set_custom_entity()
 
@@ -22,13 +22,13 @@ The function should take care of items being taken to next levels, waddler, etc.
 
 For carry_type, use CARRY_TYPE.HELD or .MOUNT
 
-### :white_check_mark: void set_custom_entity(uid, custom_ent_id)
+### :white_check_mark: void set_custom_entity(uid, custom_ent_id, args)
 
-make a entity to be a custom one
+make a entity to be a custom one. The args are optional.
 
-### :red_circle: void spawn_custom_entity(custom_ent_id)
+### :white_check_mark: void spawn_custom_entity(custom_ent_id, x, y, l, vel_x, vel_y, args)
 
-spawn a custom entity
+spawn a custom entity. The args are optional. You could spawn a normal entity and use the set_custom_entity if you need to use any other spawn method like spawn_critical or spawn_on_floor, it would do the same thing.
 
 (requires ent_type on custom_ent to be set)
 
@@ -110,11 +110,13 @@ Uses jetpack as base entity, sets the fuel to 0.
 
 The holder is nil if it isn't being carried on the back of a player.
 
-### :white_check_mark: int id new_custom_purchasable_back(function(entity) set_func, function(entity, custom_ent_info) updatefunc, int animation_frame, int toreplace_custom_id, bool flammable)
+### :white_check_mark: int id new_custom_purchasable_back(function(entity) set_func, function(entity, custom_ent_info) updatefunc, int toreplace_custom_id, bool flammable)
 
-(WIP) Spawns a rock, and changes some of the properties to make it look like a backpack, spawns the toreplace entity when the item isn't a shop item anymore (bought, shopkeeper angered, etc.)
+(WIP) When it's flammable, it spawns a purchasable jetpack, and tries to replace the new backpack when bought / shopkeeper angered, doesn't work in some cases yet.
 
-The custom item that will replace it must have a ent_type assinged.
+When not flammable, it spawns a rock, and changes some of the properties to make it look like a backpack, spawns the toreplace entity when the item isn't a shop item anymore (bought, shopkeeper angered, etc.)
+
+The custom item that will replace it must have a ent_type assinged (custom backpacks have ITEM_JETPACK by default).
 
 ### :red_circle: int id set_custom_pickup(function() set_func, function() update_holder, optional\<int\> ent_type)
 

@@ -23,7 +23,7 @@ local function parachute_back_set(ent)
     return {}
 end
 
-local function parachute_back_update(ent, c_data, holder) --make a new_backpack in the lib
+local function parachute_back_update(ent, c_data, holder)
     ent.color.r = 0.75
     ent.color.g = 0.75
     ent.color.b = 0.75
@@ -36,13 +36,14 @@ local function parachute_back_p_set(ent)
     ent.color.r = 0.75
     ent.color.g = 0.75
     ent.color.b = 0.75
+    ent.animation_frame = 43
     add_custom_name(ent.uid, "ParachutePack")
     c_ent_lib.set_price(ent, 5000, 750)
     return {}
 end
 
 local parachute_back = c_ent_lib.new_custom_backpack(parachute_back_set, parachute_back_update, false)
-local parachute_back_p = c_ent_lib.new_custom_purchasable_back(parachute_back_p_set, function() end, 43, parachute_back, false)
+local parachute_back_p = c_ent_lib.new_custom_purchasable_back(parachute_back_p_set, function() end, parachute_back, false)
 c_ent_lib.init(true)
 
 c_ent_lib.add_custom_shop_chance(parachute_back_p, c_ent_lib.CHANCE.COMMON, c_ent_lib.ALL_SHOPS)
