@@ -27,7 +27,7 @@ local function mycustom_shoot(weapon, data)
     local bomb = get_entity(spawn(ENT_TYPE.ITEM_BOMB, x+0.2*dir, y, l, 0.25*dir, 0.075))
     bomb_spawn_sound:play()
     messpect(bomb.uid)
-    bomb.last_owner_uid = weapon:topmost_mount().uid
+    bomb.last_owner_uid = weapon.overlay.uid
 end
 
 local c_gun = c_ent_lib.new_custom_gun2(mycustom_set, mycustom_update, mycustom_shoot, 60, 0, 0, ENT_TYPE.ITEM_FREEZERAY, false)--0.2, 0.05, ENT_TYPE.ITEM_FREEZERAY)
@@ -50,7 +50,7 @@ local function mycustom_shoot2(weapon, data)
     local bomb = get_entity(spawn(ENT_TYPE.ITEM_BOMB, x+0.2*dir, y, l, 0.25*dir, 0.075))
     bomb_spawn_sound:play()
     messpect(bomb.uid)
-    bomb.last_owner_uid = weapon:topmost_mount().uid
+    bomb.last_owner_uid = weapon.overlay.uid
 end
 
 local c_gun = c_ent_lib.new_custom_gun2(mycustom_set, mycustom_update, mycustom_shoot, 60, 0, 0, ENT_TYPE.ITEM_FREEZERAY, true)--0.2, 0.05, ENT_TYPE.ITEM_FREEZERAY)

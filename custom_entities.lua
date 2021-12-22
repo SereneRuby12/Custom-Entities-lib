@@ -26,15 +26,6 @@ local function join(a, b)
     return result
 end
 
-local function has(arr, item)
-    for i, v in pairs(arr) do
-        if v == item then
-            return true
-        end
-    end
-    return false
-end
-
 local shop_items = {ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_SKELETON_KEY, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_METAL_SHIELD, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_PICKUP_HEDJET, ENT_TYPE.ITEM_PICKUP_ROYALJELLY, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_WOODEN_ARROW, ENT_TYPE.ITEM_PICKUP_COOKEDTURKEY}
 local extra_shop_items = {ENT_TYPE.ITEM_LIGHT_ARROW, ENT_TYPE.ITEM_PICKUP_GIANTFOOD, ENT_TYPE.ITEM_PICKUP_ELIXIR, ENT_TYPE.ITEM_PICKUP_CLOVER, ENT_TYPE.ITEM_PICKUP_SPECIALCOMPASS, ENT_TYPE.ITEM_PICKUP_UDJATEYE, ENT_TYPE.ITEM_PICKUP_KAPALA, ENT_TYPE.ITEM_PICKUP_CROWN, ENT_TYPE.ITEM_PICKUP_EGGPLANTCROWN, ENT_TYPE.ITEM_PICKUP_TRUECROWN, ENT_TYPE.ITEM_PICKUP_ANKH, ENT_TYPE.ITEM_CLONEGUN, ENT_TYPE.ITEM_HOUYIBOW, ENT_TYPE.ITEM_WOODEN_SHIELD, ENT_TYPE.ITEM_LANDMINE, ENT_TYPE.ITEM_SNAP_TRAP} --scepter, vlads cape and the swords don't work
 local all_shop_items = join(shop_items, extra_shop_items)
@@ -380,9 +371,8 @@ function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil
     }
     custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
         ent.cooldown = math.max(ent.cooldown, 2)
-        local holder = ent:topmost_mount()
-        if holder ~= ent then
-            local holder_input = read_input(holder.uid)
+        local holder = ent.overlay
+        if holder and holder.type.search_flags == MASK.PLAYER then --Other entities that can hold guns will never shoot when cooldown isn't zero, so only players, also to prevent activefloors
             if holder:is_button_pressed(BUTTON.WHIP) and ent.cooldown == 2 and holder.state ~= CHAR_STATE.DUCKING and holder.animation_frame ~= 18 then
                 ent.cooldown = c_type.cooldown+2
                 local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
@@ -393,7 +383,7 @@ function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil
         end
         c_type.update_callback(ent, c_data)
         if is_portal then
-            if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
+            if ent.state ~= 24 and ent.last_state ~= 24 then
                 c_data.last_holder = ent.overlay
             end
         end
@@ -505,7 +495,8 @@ local function spawn_replacement(ent, custom_id)
     local replacement_uid = spawn(custom_types[custom_id].ent_type, x, y, l, vx, vy)
     local replacement = get_entity(replacement_uid)
     module.set_custom_entity(replacement_uid, custom_id)
-    if ent.overlay and ent.overlay.type.search_flags ~= MASK.ACTIVEFLOOR then
+    if ent.overlay and ent.overlay.type.search_flags == MASK.PLAYER then
+        messpect(ent.overlay.type.id)
         ent.overlay:pick_up(replacement)
     end
     ent:destroy()
@@ -541,115 +532,33 @@ function module.new_custom_purchasable_back(set_func, update_func, toreplace_cus
         ["entities"] = {}
     }
     if flammable then
-        custom_types[custom_id].ent_type = ENT_TYPE.ITEM_PURCHASABLE_JETPACK
-        custom_types[custom_id].set = function(ent, nothing, args)
-            set_on_destroy(ent.uid, function(entity)
-                prev_jetpacks = get_entities_by_type(ENT_TYPE.ITEM_JETPACK)
-            end)
-            return set_func(ent, nothing, args)
-        end
-        custom_types[custom_id].after_destroy_callback = function(c_data) --fix when not holding
-            messpect('asd', not c_data.already_handled)
-            if not c_data.already_handled then
-                local possible_holder = c_data.last_holder
-                messpect(possible_holder, 'statescreen', state.screen)
-                if possible_holder then
-                    for _, uid in ipairs(get_entities_by_type(ENT_TYPE.ITEM_JETPACK)) do
-                        if not has(prev_jetpacks, uid) then
-                            local jetpack = get_entity(uid)
-                            messpect(possible_holder, jetpack.overlay and jetpack.overlay.uid or 'nope')
-                            if jetpack.overlay and jetpack.overlay.uid == possible_holder then
-                                module.set_custom_entity(jetpack.uid, toreplace_custom_id)
-                            end
-                        end
-                    end
-                else
-                    replace_new_back_by_pos(c_data.x, c_data.y, c_data.l, c_data.vy+c_data.vx + 0.01, c_data.vx + c_data.vy > 0.35, toreplace_custom_id)
-                end
-            end
+        custom_types[custom_id].ent_type = ENT_TYPE.ITEM_ROCK
+        custom_types[custom_id].set = function(ent, c_data, args)
+            ent.flags = clr_flag(ent.flags, ENT_FLAG.TAKE_NO_DAMAGE)
+            ent.hitboxx = 0.3
+            ent.hitboxy = 0.35
+            ent.offsety = -0.03
+            set_timeout(function()
+                custom_types[custom_id].entities[ent.uid].shop_owner = ent.last_owner_uid
+            end, 1)
+            return set_func(ent, c_data, args)
         end
         custom_types[custom_id].update = function(ent, c_data, c_type)
-            --messpect(ent.overlay and ent.overlay.uid or nil, test_flag(ent.flags, ENT_FLAG.DEAD), test_flag(ent.flags, ENT_FLAG.SHOP_ITEM))
-            if test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
-                c_data.time = 1
-                c_data.last_holder = ent.overlay and ent.overlay.uid or nil
-                messpect('holder', c_data.last_holder)
-                c_data.last_x, c_data.last_y, c_data.last_l = get_position(ent.uid)
-                c_data.vx, c_data.vy = get_velocity(ent.uid)
-                if ent.overlay then
-                    local overlay_worn = ent.overlay:worn_backitem()
-                    if overlay_worn == -1 then
-                        c_data.same_type_worn = false
-                    else
-                        c_data.same_type_worn = get_entity(overlay_worn).type.id == ENT_TYPE.ITEM_JETPACK
-                    end
-                end
+            if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
+                spawn_replacement(ent, toreplace_custom_id)
+                c_data = nil
             else
-                local x, y, l = get_position(ent.uid)
-                local spawned_backs = get_entities_by_type(ENT_TYPE.ITEM_JETPACK)
-                messpect('not_shop', c_data.last_holder, #spawned_backs, 'not rob', not get_entity(get_entities_by_type(ENT_TYPE.MONS_SHOPKEEPER)[1]).aggro_trigger)
-                c_data.already_handled = true
-                if c_data.last_holder then
-                    local holder = get_entity(c_data.last_holder)
-                    if holder then
-                        local new_backpack = -1
-                        if c_data.same_type_worn then
-                            new_backpack = holder.holding_uid
-                        else
-                            new_backpack = holder:worn_backitem()
-                        end
-                        if new_backpack ~= -1 then
-                            module.set_custom_entity(holder:worn_backitem(), toreplace_custom_id)
-                        elseif c_data.time == 2 then --happens when throwing back to a shopkeeper
-                            local x, y, l = get_position(ent.uid)
-                            local vx, vy = get_velocity(ent.uid)
-                            vx, vy = math.abs(vx), math.abs(vy)
-                            set_timeout(function()
-                                replace_new_back_by_pos(x, y, l, vy + vx + 0.01, vx+vy > 0.35, toreplace_custom_id)
-                            end, 1)
-                        end
-                    end
-                elseif not test_flag(state.level_flags, 10) then -- TODO: fix for backlayer shops | old: not get_entity(get_entities_by_type(ENT_TYPE.MONS_SHOPKEEPER)[1]).aggro_trigger then
-                    local possible_buyers = get_entities_overlapping_hitbox(0, MASK.PLAYER, get_hitbox(ent.uid), ent.layer)
-                    for i = #possible_buyers, -1, 1 do
-                        if not get_entity(possible_buyers[i]):is_button_pressed(BUTTON.DOOR) then
-                            table.remove(possible_buyers, i)
-                        end
-                    end
-                    if #possible_buyers == 1 then
-                        local buyer_uid = possible_buyers[1]
-                        local buyer = get_entity(buyer_uid)
-                        local buyer_back = buyer:worn_backitem()
-                        messpect('back', buyer_back)
-                        --if buyer_back == -1 then
-                            --set_timeout(function()
-                                messpect(get_entity(buyer_uid):worn_backitem())
-                                module.set_custom_entity(buyer_back, toreplace_custom_id)
-                            --end, 1)
-                        --[[else
-                            if get_entity(buyer_back).type.id == ENT_TYPE.ITEM_JETPACK then
-                                local x, y, l = get_position(ent.uid)
-                                local vx, vy = get_velocity(ent.uid)
-                                vx, vy = math.abs(vx), math.abs(vy)
-                                set_timeout(function()
-                                    replace_new_back_by_pos(x, y, l, vy + vx + 0.01, vx+vy > 0.35, toreplace_custom_id)
-                                end, 1)
-                            end
-                        end]]
-                    else
-                        c_data.possible_buyers = possible_buyers
-                    end
-                elseif c_data.time == 2 then
-                    --local x, y, l = get_position(ent.uid)
-                    local vx, vy = get_velocity(ent.uid)
-                    vx, vy = math.abs(vx), math.abs(vy)
-                    set_timeout(function()
-                        replace_new_back_by_pos(x, y, l, vy + vx + 0.01, vx+vy > 0.35, toreplace_custom_id)
-                    end, 1)
+                local danger_entities = get_entities_overlapping_hitbox({ENT_TYPE.MONS_MAGMAMAN, ENT_TYPE.ITEM_BULLET}, MASK.ANY, get_hitbox(ent.uid), ent.layer)
+                if danger_entities[1] or ent.onfire_effect_timer > 0 then
+                    messpect(ent.last_owner_uid)
+                    if ent.last_owner_uid ~= -1 and get_entity(ent.last_owner_uid).type.search_flags == MASK.PLAYER then
+                        get_entity(c_data.shop_owner).aggro_trigger = true
+                    end --TODO: make shopkeeper shoot when not caused by players
+                    spawn_replacement(ent, toreplace_custom_id).explosion_trigger = true
+                    c_data = nil
                 end
-                c_data.time = c_data.time + 1
+                c_type.update_callback(ent, c_data)
             end
-            c_type.update_callback(ent, c_data)
         end
     else
         custom_types[custom_id].ent_type = ENT_TYPE.ITEM_ROCK
@@ -672,7 +581,7 @@ function module.new_custom_purchasable_back(set_func, update_func, toreplace_cus
 end
 
 local function set_nonflammable_backs_callbacks()
-    set_pre_entity_spawn(function(entity_type, x, y, layer, overlay_entity, spawn_flags)
+    set_pre_entity_spawn(function(_, x, y, layer, _, _)
         if y == -123 then
             return spawn_entity_nonreplaceable(ENT_TYPE.ITEM_ROCK, x, y, layer, 0, 0)
         end
@@ -886,22 +795,33 @@ function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types)
     end
 end
 
+local toreplace_crate_content = {
+    ["custom_type_id"] = nil,
+    ["entity_type"] = nil
+}
 local function set_custom_container_spawns()
     set_post_entity_spawn(function(crate)
-        local function customize_drop(crate, killer_or_opener)
+        local function customize_drop(crate)
             local custom_type_id, entity_type = get_custom_item_from_chances(custom_types_container[crate.type.id])
             if custom_type_id then
-                local cb
-                set_contents(crate.uid, entity_type)
-                cb = set_post_entity_spawn(function(ent)
-                    module.set_custom_entity(ent.uid, custom_type_id)
-                    clear_callback(cb)
-                end, SPAWN_TYPE.ANY, MASK.ANY, crate.inside)
+                crate.inside = ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN
+                toreplace_crate_content.custom_type_id = custom_type_id
+                toreplace_crate_content.entity_type = entity_type
             end
         end
         set_on_kill(crate.uid, customize_drop)
         set_on_open(crate.uid, customize_drop)
     end, SPAWN_TYPE.ANY, MASK.ANY, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_GHIST_PRESENT})
+
+    set_pre_entity_spawn(function(_, x, y, layer, _, _) --this is immediately called after the kill or open, will work even when whipping many crates at the same time
+        if toreplace_crate_content.custom_type_id then
+            local uid = spawn(toreplace_crate_content.entity_type, x, y, layer, prng:random_float(PRNG_CLASS.LEVEL_DECO)*0.2-0.1, 0.1)
+            module.set_custom_entity(uid, toreplace_crate_content.custom_type_id)
+
+            toreplace_crate_content.custom_type_id = nil
+            return uid
+        end
+    end, SPAWN_TYPE.SYSTEMIC, MASK.ANY, ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN)
     custom_container_items_set = true
 end
 
