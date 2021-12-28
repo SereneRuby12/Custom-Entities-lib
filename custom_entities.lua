@@ -827,6 +827,7 @@ function module.do_pickup_effect(player_uid, texture_id, animation_frame)
     end
     pickup_fx.animation_frame = animation_frame
     get_item_sound:play()
+    return pickup_fx
 end
 
 local nope_sound = get_sound(VANILLA_SOUND.SHOP_SHOP_NOPE)

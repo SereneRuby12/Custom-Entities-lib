@@ -123,11 +123,16 @@ The custom item that will replace it must have a ent_type assinged (custom backp
 Create a new powerup for players, the last params (texture, row, etc.) are for the item rendering on the HUD. Make sure to use `set_powerup_drop()` after creating the pickup, it will spawn the pickup when a player dies and playing local multiplayer.
 
 ### :white_check_mark: void set_powerup_drop(int powerup_id, int pickup_id)
+
 Sets the pickup that will be dropped when a player dies with the powerup on multiplayer.
 
 ### :white_check_mark: int id new_custom_pickup(function(entity, transition_data) set_func, function(entity, custom_ent_info, holder) updatefunc, function(entity, player, c_data, has_powerup) pickupfunc, int custom_powerup_id, entity_type)
 
 Create a new pickup, you can use the function `do_pickup_effect()` to spawn the pickup effect easily on the pickup function.
+
+### :white_check_mark: void do_pickup_effect(int player_uid, int texture_id, int animation_frame)
+
+Spawn a FX_PICKUPEFFECT on player_uid, and set its texture and animation_frame. Returns the fx entity.
 
 ### :white_check_mark: int id new_custom_purchasable_pickup(function(entity, transition_data) set_func, function(entity, custom_ent_info) update_func, int custom_pickup_id)
 
