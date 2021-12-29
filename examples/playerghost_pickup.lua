@@ -1,20 +1,21 @@
 local celib = require "custom_entities"
---TODO: kill the ghost when player dies
+
 local player_colors = {}
 local ghost_id, powerup_id, pickup_id
 
-local colors = {'r', 'g', 'b'}
-local function number_to_range(num, min, max)
-    if num > max then
-        num = (num - max) + min - 1
-    elseif num < min then
-        num = (num - min) + max + 1
-    end
-    return num
+local mirror_texture_id
+do
+    local mirror_texture_def = TextureDefinition.new()
+    mirror_texture_def.width = 128
+    mirror_texture_def.height = 128
+    mirror_texture_def.tile_width = 128
+    mirror_texture_def.tile_height = 128
+
+    mirror_texture_def.texture_path = "Mirror.png"
+    mirror_texture_id = define_texture(mirror_texture_def)
 end
 
 local ghost_chains = {}
-local pickup_draw_info = celib.new_item_draw_info(TEXTURE.DATA_TEXTURES_HUD_1, 1, 0)
 
 local function powerup_set_func(ent)
     messpect(state.screen)
@@ -38,7 +39,6 @@ local function powerup_set_func(ent)
             set_timeout(function()
                 local playerghosts = get_entities_by_type(ENT_TYPE.ITEM_PLAYERGHOST)
                 playerghost_uid = playerghosts[prev_ghosts+1] --make something to make picking two at the same time work?
-                --messpect('ghosts', playerghosts, playerghost_uid, prev_ghosts+1, #playerghosts)
                 celib.custom_types[powerup_id].entities[ent.uid].ghost_uid = playerghost_uid
                 celib.set_custom_entity(playerghost_uid, ghost_id, ent.uid)
             end, 1)
@@ -53,7 +53,6 @@ end
 
 local function powerup_update_func(ent, c_data)
     if test_flag(ent.flags, ENT_FLAG.DEAD) then
-        --kill_entity(c_data.ghost_uid)
         local chain_id = celib.custom_types[ghost_id].entities[c_data.ghost_uid].chain_id
         messpect(#get_entities_by_type(ENT_TYPE.ITEM_PLAYERGHOST), 'ghosts')
         if ghost_chains[chain_id] then
@@ -73,7 +72,7 @@ local function powerup_update_func(ent, c_data)
                 end
             end, 1)
         end
-        
+
         clear_entity_callback(c_data.ghost_uid, celib.custom_types[ghost_id].entities[c_data.ghost_uid].statemachine)
         celib.custom_types[ghost_id].entities[c_data.ghost_uid] = nil
         return
@@ -97,35 +96,19 @@ end
 
 
 local function pickup_set_func(ent)
-    ent.color.b = 0
-    ent.color.g = 0
-    ent:set_texture(TEXTURE.DATA_TEXTURES_FX_SMALL3_0)
-    ent.animation_frame = 8
-    add_custom_name(ent.uid, "Rainbower")
+    ent:set_texture(mirror_texture_id)
+    ent.animation_frame = 0
+    ent.hitboxy = 0.27
+    add_custom_name(ent.uid, "Ghost Mirror")
     celib.set_price(ent, 500, 20)
-    return {
-        ["color_n"] = 2,
-        ["vel"] = math.random()/20+0.01,
-        ["up"] = true
-    }
+    return {}
 end
 
-local function pickup_update_func(ent, data)
-    local color = colors[data.color_n]
-    ent.color[color] = data.up and ent.color[color] + data.vel or ent.color[color] - data.vel
-    if ent.color[color] <= 0 then
-        ent.color[color] = 0
-        data.color_n = number_to_range(data.color_n + 2, 1, 3)
-        data.up = true
-    elseif ent.color[color] >= 1 then
-        ent.color[color] = 1
-        data.color_n = number_to_range(data.color_n - 1, 1, 3)
-        data.up = false
-    end
+local function pickup_update_func()
 end
 
 local function pickup_picked_func(_, player, _, has_pickup)
-    celib.do_pickup_effect(player.uid, TEXTURE.DATA_TEXTURES_FX_SMALL3_0, 8)
+    celib.do_pickup_effect(player.uid, mirror_texture_id, 0)
 end
 
 local function chained_ghost_set(ent, _, player_uid)
@@ -167,10 +150,6 @@ local function chained_ghost_update(ent, c_data)
             local gx, gy = get_position(ent.uid)
             local px, py = get_position(c_data.player_uid)
             local xdist, ydist = px - gx, py - gy
-            --[[if state.theme == THEME.COSMIC_OCEAN then
-                local xmin, ymin, xmax, ymax = get_bounds()
-                if xdist*xdist > 
-            end]]
             ent.velocityx = ent.velocityx + xdist*0.005
             ent.velocityy = ent.velocityy + ydist*0.005
         end
@@ -206,7 +185,7 @@ local function chained_ghost_update(ent, c_data)
     end
 end
 
-powerup_id = celib.new_custom_powerup(powerup_set_func, powerup_update_func, TEXTURE.DATA_TEXTURES_FX_SMALL3_0, 1, 0)
+powerup_id = celib.new_custom_powerup(powerup_set_func, powerup_update_func, mirror_texture_id, 0, 0)
 
 pickup_id = celib.new_custom_pickup(pickup_set_func, pickup_update_func, pickup_picked_func, powerup_id, ENT_TYPE.ITEM_PICKUP_COMPASS)
 celib.set_powerup_drop(powerup_id, pickup_id)
@@ -215,9 +194,9 @@ local purchasable_pickup_id = celib.new_custom_purchasable_pickup(pickup_set_fun
 
 ghost_id = celib.new_custom_entity(chained_ghost_set, chained_ghost_update, nil)
 
-celib.add_custom_container_chance(pickup_id, celib.CHANCE.COMMON, celib.ALL_CONTAINERS)
+celib.add_custom_container_chance(pickup_id, celib.CHANCE.COMMON, ENT_TYPE.ITEM_GHIST_PRESENT)
 
-celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.COMMON, celib.ALL_SHOPS)
+celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.LOW, {celib.SHOP_TYPE.CAVEMAN, celib.SHOP_TYPE.TUN})
 
 set_callback(function()
     local x, y, l = get_position(players[1].uid)

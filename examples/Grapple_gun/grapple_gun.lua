@@ -7,7 +7,7 @@ do
     grapple_texture_def.height = 128
     grapple_texture_def.tile_width = 128
     grapple_texture_def.tile_height = 128
-
+    
     grapple_texture_def.texture_path = "Grapple_gun.png"
     grapple_texture_id = define_texture(grapple_texture_def)
 end
@@ -16,9 +16,37 @@ local UP_DIR = 11 -- 1024
 local DOWN_DIR = 12 -- 2048
 
 local chains = {}
+local level_xsize, level_ysize
 
 local function lerp(a, b, t)
     return a + (b - a) * t
+end
+
+local function get_co_distances(x1, y1, x2, y2)
+    local xdist, ydist = x2 - x1, y2 - y1
+    local loop_x, loop_y = false, false
+    if state.theme == THEME.COSMIC_OCEAN then
+        local loop_xdist, loop_ydist = xdist < 0 and xdist + level_xsize or xdist - level_xsize,
+        ydist < 0 and ydist + level_ysize or ydist - level_ysize
+        --messpect(x1, loop_xdist, xdist, loop_xdist*loop_xdist, xdist*xdist)
+        --messpect(y1, loop_ydist, ydist, loop_ydist*loop_ydist, ydist*ydist)
+        if xdist*xdist > loop_xdist*loop_xdist then
+            loop_x = true
+            xdist = loop_xdist
+        end
+        if ydist*ydist > loop_ydist*loop_ydist then
+            loop_y = true
+            ydist = loop_ydist
+        end
+    end
+    return math.sqrt(xdist*xdist+ydist*ydist), xdist, ydist, loop_x, loop_y
+end
+
+local function get_co_distance(uid1, uid2)
+    local x1, y1 = get_position(uid1)
+    local x2, y2 = get_position(uid2)
+    local dist, xdist, ydist = get_co_distances(x1, y1, x2, y2)
+    return dist, xdist, ydist
 end
 
 local function get_solids(floors)
@@ -57,7 +85,7 @@ local function grapple_hook_set(ent, _, args) --gun, angle, facing_left
     local extrude = 0.175
     local floors = get_solids(get_entities_overlapping_hitbox(0, MASK.FLOOR | MASK.ACTIVEFLOOR, AABB:new(x-extrude,y+extrude,x+extrude,y-extrude), ent.layer))
     if floors[1] then
-        messpect('floor')
+        --messpect('floor')
         ent.velocityx = 0
         ent.velocityy = 0
         custom_data.attached = true
@@ -75,13 +103,17 @@ local function grapple_hook_update(ent, c_data)
     
     if c_data.attached and g_gun and g_gun.overlay then
         local gun_x, gun_y = get_position(g_gun.overlay.uid)
-        if distance(ent.uid, g_gun_uid) > 1 then
-            local xdist, ydist = hook_x - gun_x, hook_y - gun_y
+        local dist, xdist, ydist = get_co_distances(gun_x, gun_y, hook_x, hook_y)
+        if dist > 1 then
+            --local xdist, ydist = hook_x - gun_x, hook_y - gun_y
             if c_data.gun and g_gun.overlay and not (g_gun.overlay.overlay and g_gun.overlay.overlay.type.id == ENT_TYPE.FLOOR_PIPE) then
                 local topmost = g_gun.overlay:topmost_mount()
                 topmost.velocityx = topmost.velocityx + ((math.abs(xdist) > 1.5 or math.abs(xdist) < 0.2) and xdist*0.01 or (xdist > 0 and 0.02 or -0.02))
                 topmost.velocityy = topmost.velocityy + ydist*0.01
-                g_gun.overlay.falling_timer = 0
+                topmost.falling_timer = 0
+                if topmost.state == CHAR_STATE.PUSHING then
+                    move_entity(topmost.uid, gun_x, gun_y, 0, 0)
+                end
             else
                 kill_entity(ent.uid)
             end
@@ -136,11 +168,13 @@ local function grapple_gun_set(ent, c_data)
 end
 
 local function grapple_gun_update(ent, c_data)
-    local dist = distance(ent.uid, c_data.attached_uid)
-    if c_data.shot and (dist > 10 or dist == -1) then
-        ent.animation_frame = 0
-        c_data.shot = false
-        kill_entity(c_data.attached_uid)
+    if c_data.attached_uid then
+        local dist = get_co_distance(ent.uid, c_data.attached_uid)
+        if c_data.shot and (dist > 10 or dist == -1) then
+            ent.animation_frame = 0
+            c_data.shot = false
+            kill_entity(c_data.attached_uid)
+        end
     end
     if ent.overlay and ent.overlay.type.search_flags == MASK.PLAYER then
         local input = read_input(ent.overlay.uid)
@@ -160,6 +194,8 @@ local function grapple_gun_shoot(ent, c_data)
         ent.animation_frame = 0
         c_data.shot = false
         kill_entity(c_data.attached_uid)
+        grapple_hook_destroy(celib.get_custom_entity(c_data.attached_uid, hook_id))
+        c_data.attached_uid = nil
     else
         ent.animation_frame = 1
         local x, y, l = get_position(ent.uid)
@@ -181,21 +217,42 @@ celib.add_custom_container_chance(grapple_id, celib.CHANCE.COMMON, {ENT_TYPE.ITE
 
 celib.init(true)
 
+local white = Color:white()
 set_callback(function(render_ctx, draw_depth)
     if draw_depth == 30 then
         for _, v in ipairs(chains) do
             local hook_x, hook_y = get_render_position(v.hook_uid)
             local gun_x, gun_y = get_render_position(v.gun_uid)
-            local dist = distance(v.hook_uid, v.gun_uid)*4
-            local xdiff, ydiff = gun_x - hook_x, gun_y - hook_y
+            local dist, xdiff, ydiff, loop_x, loop_y = get_co_distances(hook_x, hook_y, gun_x, gun_y)
+            dist = dist*4
+            --local xdiff, ydiff = gun_x - hook_x, gun_y - hook_y
             local it_xdiff, it_ydiff = xdiff/dist, ydiff/dist
+            if loop_x then
+                if xdiff > 0 then
+                    hook_x = hook_x - level_xsize
+                else
+                    hook_x = hook_x + level_xsize
+                end
+            end
+            if loop_y then
+                if ydiff > 0 then
+                    hook_y = hook_y - level_ysize
+                else
+                    hook_y = hook_y + level_ysize
+                end
+            end
             for i = 1, math.floor(dist) do
                 local ix, iy = hook_x+it_xdiff*i, hook_y+it_ydiff*i
-                render_ctx:draw_world_texture(TEXTURE.DATA_TEXTURES_ITEMS_0, 6, 12+i%2, ix-0.5, iy+0.5, ix+0.5, iy-0.5, Color:white())
+                render_ctx:draw_world_texture(TEXTURE.DATA_TEXTURES_ITEMS_0, 6, 12+i%2, ix-0.5, iy+0.5, ix+0.5, iy-0.5, white)
             end
+        end
     end
-end
 end, ON.RENDER_PRE_DRAW_DEPTH)
+
+set_callback(function()
+    local x1, y1, x2, y2 = get_bounds()
+    level_xsize, level_ysize = x2-x1, y1-y2
+end, ON.POST_ROOM_GENERATION)
 
 register_option_button('grapple_spawn', 'spawn grapple', '', function()
     local x, y, l = get_position(players[1].uid)
