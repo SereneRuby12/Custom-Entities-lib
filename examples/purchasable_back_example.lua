@@ -14,6 +14,7 @@ end
 local function rainbow_cape_set(ent, data)
     ent.color.b = 0
     ent.color.g = 0
+    ent.animation_frame = 40
     add_custom_name(ent.uid, "Rainbow cape")
     c_ent_lib.set_price(ent, 10000, 1000)
     return {
@@ -39,12 +40,11 @@ end
 
 c_ent_lib.init(true)
 local rainbow_cape = c_ent_lib.new_custom_entity(rainbow_cape_set, rainbow_cape_update, c_ent_lib.CARRY_TYPE.HELD, ENT_TYPE.ITEM_CAPE)
-local rainbow_cape_p = c_ent_lib.new_custom_purchasable_back(rainbow_cape_set, rainbow_cape_update, 40, rainbow_cape, false)
+local rainbow_cape_p = c_ent_lib.new_custom_purchasable_back(rainbow_cape_set, rainbow_cape_update, rainbow_cape, false)
 
 c_ent_lib.add_custom_shop_chance(rainbow_cape_p, c_ent_lib.CHANCE.COMMON, c_ent_lib.ALL_SHOPS)
 
 set_callback(function()
     local x, y, l = get_position(players[1].uid)
-    local uid = spawn(ENT_TYPE.ITEM_CAPE, x, y, l, 0, 0)
-    c_ent_lib.set_custom_entity(uid, rainbow_cape)
+    c_ent_lib.spawn_custom_entity(rainbow_cape, x, y, l, 0, 0)
 end, ON.START)

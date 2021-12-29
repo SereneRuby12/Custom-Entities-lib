@@ -1,9 +1,10 @@
 meta = {
     name = "Custom Entities Library",
-    version = "0.7",
+    version = "0.8",
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
+--TODO: dice shop (PrizeDispenser?), clonegun
 local module = {}
 local custom_types = {}
 
@@ -18,6 +19,7 @@ local CARRY_TYPE = {
     ["HELD"] = 1,
     ["MOUNT"] = 2,
     ["BACK"] = 3,
+    ["POWERUP"] = 4
 }
 
 local function join(a, b)
@@ -56,6 +58,10 @@ module.ALL_CONTAINERS = {
     ENT_TYPE.ITEM_GHIST_PRESENT
 }
 local custom_container_items_set = false
+local nonflammable_backs_callbacks_set = false
+local item_draw_callbacks_set = false
+
+local just_burnt, last_burn = 0, 0 --for non_flammable backpacks
 
 --chance type
 module.CHANCE = {
@@ -114,7 +120,7 @@ local weapon_info = {
     },
 }
 
-local function set_transition_info(c_type_id, data, slot, carry_type) --mounted: false = being held
+local function set_transition_info(c_type_id, data, slot, carry_type)
     table.insert(custom_entities_t_info,
     {
         ["custom_type_id"] = c_type_id,
@@ -153,13 +159,16 @@ local function set_transition_info_storage(c_type_id, data, e_type)
 end
 
 local function update_customs()
-    local is_portal = #get_entities_by_type(ENT_TYPE.FX_PORTAL) > 0 
+    local is_portal = #get_entities_by_type(ENT_TYPE.FX_PORTAL) > 0
     for _,c_type in ipairs(custom_types) do
         for uid, c_data in pairs(c_type.entities) do
             local ent = get_entity(uid)
             if ent then
                 c_type.update(ent, c_data, c_type, is_portal)
             else
+                if c_type.after_destroy_callback then
+                    c_type.after_destroy_callback(c_data)
+                end
                 c_type.entities[uid] = nil
             end
         end
@@ -179,8 +188,8 @@ local function set_custom_items_waddler(items_zone, layer)
 end
 
 local function set_custom_ents_from_previous(companions)
-    for i, info in ipairs(custom_entities_t_info) do
-        for ip,p in ipairs(players) do
+    for _, info in ipairs(custom_entities_t_info) do
+        for _, p in ipairs(players) do
             if p.inventory.player_slot == info.slot then
                 local custom_ent
                 if info.carry_type == CARRY_TYPE.MOUNT then
@@ -189,13 +198,15 @@ local function set_custom_ents_from_previous(companions)
                     custom_ent = p:get_held_entity()
                 elseif info.carry_type == CARRY_TYPE.BACK then
                     custom_ent = get_entity(p:worn_backitem())
+                elseif info.carry_type == CARRY_TYPE.POWERUP then
+                    custom_ent = p
                 end
                 custom_types[info.custom_type_id].entities[custom_ent.uid] = custom_types[info.custom_type_id].set(custom_ent, info.data)
             end
         end
     end
     for _, info in pairs(custom_entities_t_info_hh) do
-        for i, uid in ipairs(companions) do
+        for _, uid in ipairs(companions) do
             local ent = get_entity(uid)
             if ent.type.id == info.e_type and ent.linked_companion_parent ~= -1 and
             ent.health == info.hp and test_flag(ent.more_flags, ENT_MORE_FLAG.CURSED_EFFECT) == info.cursed and
@@ -214,7 +225,7 @@ local function set_custom_ents_from_previous(companions)
     storage_pos = nil
 end
 
-set_post_tile_code_callback(function(x, y, l) 
+set_post_tile_code_callback(function(x, y, l)
     if not storage_pos then
         storage_pos = {['x'] = x, ['y'] = y, ['l'] = l}
     end
@@ -230,7 +241,7 @@ function module.init(game_frame)
             update_customs()
         end, ON.FRAME)
     end
-    
+
     cb_loading = set_callback(function()
         local is_storage_floor_there = #get_entities_by_type(ENT_TYPE.FLOOR_STORAGE) > 0
         if state.loading == 2 and ((state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP) or state.screen_next == SCREEN.SPACESHIP) then
@@ -277,27 +288,32 @@ function module.init(game_frame)
                                 set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.MOUNT)
                             end
                         end
+                    elseif c_type.carry_type == CARRY_TYPE.POWERUP then
+                        local ent = get_entity(uid)
+                        if ent then
+                            set_transition_info(c_id, c_data, ent.inventory.player_slot, CARRY_TYPE.POWERUP)
+                        end
                     end
                 end
             end
         end
     end, ON.LOADING)
-    
+
     cb_transition = set_callback(function()
         local companions = get_entities_by(0, MASK.PLAYER, LAYER.FRONT)
         set_custom_ents_from_previous(companions)
     end, ON.TRANSITION)
-    
+
     cb_post_level_gen = set_callback(function()
         if state.screen == 12 then
             local px, py, pl = get_position(players[1].uid)
             local companions = get_entities_at(0, MASK.PLAYER, px, py, pl, 2)
             set_custom_ents_from_previous(companions)
-            custom_entities_t_info = {} 
+            custom_entities_t_info = {}
             custom_entities_t_info_hh = {}
         end
     end, ON.POST_LEVEL_GENERATION)
-    
+
     cb_post_room_gen = set_callback(function()
         for _,c_type in ipairs(custom_types) do
             c_type.entities = {}
@@ -322,7 +338,7 @@ function module.new_custom_entity(set_func, update_func, carry_type, opt_ent_typ
         ["ent_type"] = opt_ent_type,
         ["entities"] = {}
     }
-    
+
     if carry_type == CARRY_TYPE.HELD then
         custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
             c_type.update_callback(ent, c_data)
@@ -365,9 +381,8 @@ function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil
     }
     custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
         ent.cooldown = math.max(ent.cooldown, 2)
-        local holder = ent:topmost_mount()
-        if holder ~= ent then
-            local holder_input = read_input(holder.uid)
+        local holder = ent.overlay
+        if holder and holder.type.search_flags == MASK.PLAYER then --Other entities that can hold guns will never shoot when cooldown isn't zero, so only players, also to prevent activefloors
             if holder:is_button_pressed(BUTTON.WHIP) and ent.cooldown == 2 and holder.state ~= CHAR_STATE.DUCKING and holder.animation_frame ~= 18 then
                 ent.cooldown = c_type.cooldown+2
                 local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
@@ -378,18 +393,12 @@ function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil
         end
         c_type.update_callback(ent, c_data)
         if is_portal then
-            if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
+            if ent.state ~= 24 and ent.last_state ~= 24 then
                 c_data.last_holder = ent.overlay
             end
         end
     end
     return custom_id
-end
-
-local function get_entities(tabl)
-    for i, uid in ipairs(tabl) do
-        tabl[i] = get_entity(uid)
-    end
 end
 
 local function set_custom_bullet_callback(weapon_id)
@@ -425,7 +434,7 @@ local function set_custom_bullet_callback(weapon_id)
                             local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
                             holder.velocityx = holder.velocityx + c_type.recoil_x*recoil_dir
                             holder.velocityy = holder.velocityy + c_type.recoil_y
-                            
+
                             c_type.bulletfunc(weapon, c_data)
                             return spawn_entity(ENT_TYPE.ITEM_BULLET, 0, 0, layer, 0, 0)
                         end
@@ -434,7 +443,7 @@ local function set_custom_bullet_callback(weapon_id)
             end
         end
     end, SPAWN_TYPE.SYSTEMIC, MASK.ITEM, weapon_info[weapon_id].bullet)
-    
+
     weapon_info[weapon_id].callb_set = true
 end
 
@@ -458,16 +467,16 @@ function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, rec
     end
     if mute_sound and not weapon_info[ent_type].sound_callb_set then
         --Crashes sometimes on OL, not on PL
-        set_vanilla_sound_callback(weapon_info[ent_type].sound, VANILLA_SOUND_CALLBACK_TYPE.CREATED, function(sound)
+        set_vanilla_sound_callback(weapon_info[ent_type].sound, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function(sound)
             if weapon_info[ent_type].shots > 0 then
-                sound:set_pause(true)
-                sound:stop() --probably doesn't work
+                sound:set_volume(0)
+                sound:stop()
                 weapon_info[ent_type].shots = weapon_info[ent_type].shots - 1
             end
         end)
         weapon_info[ent_type].sound_callb_set = true
     end
-    
+
     custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
         if ent.type.id == ENT_TYPE.ITEM_SHOTGUN then
             c_data.not_shot = 6
@@ -490,48 +499,413 @@ local function spawn_replacement(ent, custom_id)
     local replacement_uid = spawn(custom_types[custom_id].ent_type, x, y, l, vx, vy)
     local replacement = get_entity(replacement_uid)
     module.set_custom_entity(replacement_uid, custom_id)
-    if ent.overlay then
+    if ent.overlay and ent.overlay.type.search_flags == MASK.PLAYER then
+        messpect(ent.overlay.type.id)
         ent.overlay:pick_up(replacement)
     end
     ent:destroy()
     return replacement
 end
 
-function module.new_custom_purchasable_back(set_func, update_func, animation_frame, toreplace_custom_id, flammable)
+local back_warn_sound = get_sound(VANILLA_SOUND.ITEMS_BACKPACK_WARN)
+function module.new_custom_purchasable_back(set_func, update_func, toreplace_custom_id, flammable)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
         ["update_callback"] = update_func,
-        ["ent_type"] = ENT_TYPE.ITEM_ROCK,
         ["entities"] = {}
     }
-    custom_types[custom_id].set = function(ent)
-        ent.hitboxx = 0.3
-        ent.hitboxy = 0.35
-        ent.offsety = -0.03
-        ent.animation_frame = animation_frame
-        if flammable then
+    if flammable then
+        custom_types[custom_id].ent_type = ENT_TYPE.ITEM_ROCK
+        custom_types[custom_id].set = function(ent, c_data, args)
             ent.flags = clr_flag(ent.flags, ENT_FLAG.TAKE_NO_DAMAGE)
+            ent.hitboxx = 0.3
+            ent.hitboxy = 0.35
+            ent.offsety = -0.03
+            set_timeout(function()
+                custom_types[custom_id].entities[ent.uid].shop_owner = ent.last_owner_uid
+            end, 1)
+            return set_func(ent, c_data, args)
         end
-        ent.flags = set_flag(ent.flags, ENT_FLAG.DEAD)
-        return set_func(ent)
-    end
-    custom_types[custom_id].update = function(ent, c_data, c_type)
-        if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
-            spawn_replacement(ent, toreplace_custom_id)
-            c_data = nil
-        elseif ent.onfire_effect_timer > 0 then
-            spawn_replacement(ent, toreplace_custom_id):light_on_fire()
-            c_data = nil
-        else
-            c_type.update_callback(ent, c_data)
+        custom_types[custom_id].update = function(ent, c_data, c_type)
+            if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
+                spawn_replacement(ent, toreplace_custom_id)
+                c_data = nil
+            else
+                local danger_entities = get_entities_overlapping_hitbox({ENT_TYPE.MONS_MAGMAMAN, ENT_TYPE.ITEM_BULLET}, MASK.ANY, get_hitbox(ent.uid), ent.layer)
+                if danger_entities[1] or ent.onfire_effect_timer > 0 then
+                    messpect(ent.last_owner_uid)
+                    back_warn_sound:play()
+                    if ent.last_owner_uid ~= -1 and get_entity(ent.last_owner_uid).type.search_flags == MASK.PLAYER then
+                        get_entity(c_data.shop_owner).aggro_trigger = true
+                    end --TODO: make shopkeeper shoot when not caused by players
+                    spawn_replacement(ent, toreplace_custom_id).explosion_trigger = true
+                    c_data = nil
+                end
+                c_type.update_callback(ent, c_data)
+            end
+        end
+    else
+        custom_types[custom_id].ent_type = ENT_TYPE.ITEM_ROCK
+        custom_types[custom_id].set = function(ent, c_data, args)
+            ent.hitboxx = 0.3
+            ent.hitboxy = 0.35
+            ent.offsety = -0.03
+            return set_func(ent, c_data, args)
+        end
+        custom_types[custom_id].update = function(ent, c_data, c_type)
+            if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
+                spawn_replacement(ent, toreplace_custom_id)
+                c_data = nil
+            else
+                c_type.update_callback(ent, c_data)
+            end
         end
     end
     return custom_id
 end
 
-function module.set_custom_entity(uid, custom_ent_id)
+local function set_nonflammable_backs_callbacks()
+    set_pre_entity_spawn(function(_, x, y, layer, _, _)
+        if y == -123 then
+            return spawn_entity_nonreplaceable(ENT_TYPE.ITEM_ROCK, x, y, layer, 0, 0)
+        end
+    end, SPAWN_TYPE.SYSTEMIC, MASK.EXPLOSION, ENT_TYPE.FX_EXPLOSION)
+
+    set_vanilla_sound_callback(VANILLA_SOUND.ITEMS_BACKPACK_WARN, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function(sound)
+        if just_burnt > 0 and last_burn == get_frame()-1 then
+            sound:set_volume(0)
+            sound:stop()
+            just_burnt = just_burnt - 1
+        end
+    end)
+    nonflammable_backs_callbacks_set = true
+end
+
+function module.new_custom_backpack(set_func, update_func, flammable)
+    local custom_id = #custom_types + 1
+    custom_types[custom_id] = {
+        ["update_callback"] = update_func,
+        ["carry_type"] = CARRY_TYPE.HELD,
+        ["ent_type"] = ENT_TYPE.ITEM_JETPACK,
+        ["entities"] = {}
+    }
+    if flammable then
+        custom_types[custom_id].set = set_func
+        custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+            local holder = ent.overlay
+            if holder and holder.type.search_flags == MASK.PLAYER then
+                local backitem_uid = holder:worn_backitem()
+                if backitem_uid == ent.uid then
+                    ent.fuel = 0
+                    c_type.update_callback(ent, c_data, holder)
+                    local holding = get_entity(holder.holding_uid)
+                    if holding and holding.type.id == ENT_TYPE.ITEM_JETPACK and not c_type.entities[holding.uid] then
+                        holder:unequip_backitem()
+                        holder:pick_up(holding)
+                    end
+                elseif not c_type.entities[backitem_uid] then
+                    holder:unequip_backitem()
+                    holder:pick_up(ent)
+                else
+                    c_type.update_callback(ent, c_data)
+                end
+            else
+                c_type.update_callback(ent, c_data)
+            end
+            if is_portal then
+                if ent.state ~= 24 and ent.last_state ~= 24 then
+                    c_data.last_holder = holder
+                end
+            end
+        end
+    else
+        custom_types[custom_id].set = function(ent, c_data)
+            set_on_kill(ent.uid, function(entity) --TODO: add fx
+                move_entity(entity.uid, 0, -123, 0, 0)
+            end)
+            ent.flags = set_flag(ent.flags, ENT_FLAG.TAKE_NO_DAMAGE)
+            return set_func(ent, c_data)
+        end
+        if not nonflammable_backs_callbacks_set then
+            set_nonflammable_backs_callbacks()
+        end
+        custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+            local holder = ent.overlay
+            if holder and holder.type.search_flags == MASK.PLAYER then
+                local backitem_uid = holder:worn_backitem()
+                if backitem_uid == ent.uid then
+                    ent.fuel = 0
+                    c_type.update_callback(ent, c_data, holder)
+
+                    local holding = get_entity(holder.holding_uid)
+                    if holding and holding.type.id == ENT_TYPE.ITEM_JETPACK and not c_type.entities[holding.uid] then
+                        holder:unequip_backitem()
+                        ent.flags = clr_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
+                        holder:pick_up(holding)
+                    end
+
+                    --this helps with preventing backpack warning sounds, not sure if use this, was mainly made for preventing hoverpack behiavour
+                    --TODO: decide if remove this (probably yes)
+                    if holder.state ~= CHAR_STATE.ENTERING and holder.state ~= CHAR_STATE.EXITING and holder.state ~= CHAR_STATE.CLIMBING and holder.state ~= 24 then
+                        if not test_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS) then
+                            ent.flags = set_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
+                            ent:set_draw_depth(26)
+                        else
+                            if test_flag(holder.flags, ENT_FLAG.FACING_LEFT) then
+                                ent.flags = set_flag(ent.flags, ENT_FLAG.FACING_LEFT)
+                                ent.x = 0.25
+                            else
+                                ent.flags = clr_flag(ent.flags, ENT_FLAG.FACING_LEFT)
+                                ent.x = -0.25
+                            end
+                        end
+                    elseif test_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS) then
+                        ent.flags = clr_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
+                    end
+                elseif not c_type.entities[backitem_uid] then
+                    holder:unequip_backitem()
+                    holder:pick_up(ent)
+                else
+                    c_type.update_callback(ent, c_data)
+                end
+            else
+                c_type.update_callback(ent, c_data)
+                if test_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS) then
+                    ent.flags = clr_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
+                end
+            end
+            if ent.explosion_trigger then
+                ent.explosion_trigger = false
+                ent.explosion_timer = 0
+                just_burnt = just_burnt + 1
+                last_burn = get_frame()
+            end
+            if test_flag(ent.flags, ENT_FLAG.DEAD) then
+                move_entity(ent.uid, 0, -123, 0, 0)
+            elseif is_portal then
+                if ent.state ~= 24 and ent.last_state ~= 24 then
+                    c_data.last_holder = ent.overlay
+                end
+            end
+        end
+    end
+    return custom_id
+end
+
+local player_items_draw = {{}, {}, {}, {}}
+local item_height = 0.04 * (16.0/9.0)
+local item_hud_color = Color:white()
+item_hud_color.a = 0.4
+
+local function set_item_draw_callbacks()
+    if not item_draw_callbacks_set then
+        set_callback(function(render_ctx)
+            if not test_flag(state.pause, 1) and (state.screen == SCREEN.LEVEL or state.screen == SCREEN.CAMP) then --state.paused is probably flags, 1 is the pause menu
+                for i, v in ipairs(player_items_draw) do
+                    for i1, draw_info in ipairs(v) do
+                        local y1, x1 = 0.74, -0.95+((i1-1)*0.04)+((i-1)*0.32)
+                        --render_ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_HUD_1, 1, 0, x1, y1, x1 + 0.04, y1 - (0.04 * (16.0/9.0)), item_hud_color)
+                        render_ctx:draw_screen_texture(draw_info.texture_id, draw_info.row, draw_info.column, x1, y1, x1 + 0.04, y1 - item_height, draw_info.color)
+                    end
+                end
+            end
+        end, ON.RENDER_POST_HUD)
+
+        set_callback(function()
+            for _, player in ipairs(players) do
+                if test_flag(player.flags, ENT_FLAG.DEAD) and not entity_has_item_type(player.uid, ENT_TYPE.ITEM_POWERUP_ANKH) then
+                    player_items_draw[player.inventory.player_slot] = {}
+                end
+            end
+        end, ON.GAMEFRAME)
+
+        set_callback(function()
+            player_items_draw = {{}, {}, {}, {}}
+        end, ON.START)
+
+        set_callback(function()
+            player_items_draw = {{}, {}, {}, {}}
+        end, ON.CAMP)
+    end
+end
+
+function module.new_item_draw_info(texture_id, row, column, color)
+    color = color ~= nil and color or item_hud_color
+    return {
+        ["texture_id"] = texture_id,
+        ["row"] = row,
+        ["column"] = column,
+        ["color"] = color
+    }
+end
+
+function module.add_player_item_draw(player_num, item_draw_info)
+    set_item_draw_callbacks()
+    local new_pos = #player_items_draw[player_num]+1
+    player_items_draw[player_num][new_pos] = item_draw_info
+    return player_num, new_pos
+end
+
+function module.new_custom_powerup(set_func, update_func, texture_id, row, column, color)
+    local custom_id = #custom_types + 1
+    custom_types[custom_id] = {
+        ["update_callback"] = update_func,
+        --custom_pickup_id to be set on set_powerup_drop
+        ["carry_type"] = CARRY_TYPE.POWERUP,
+        ["entities"] = {}
+    }
+    local item_draw_info = module.new_item_draw_info(texture_id, row, column, color)
+    custom_types[custom_id].item_draw_info = item_draw_info
+
+    custom_types[custom_id].set = function(ent, prev_c_data)
+        if not prev_c_data then
+            module.add_player_item_draw(ent.inventory.player_slot, item_draw_info)
+        end
+        return set_func(ent, prev_c_data)
+    end
+    custom_types[custom_id].update = function(ent, c_data, c_type)
+        c_type.update_callback(ent, c_data)
+        if test_flag(ent.flags, ENT_FLAG.DEAD) and not entity_has_item_type(ent.uid, ENT_TYPE.ITEM_POWERUP_ANKH)  then
+            if state.items.player_count ~= 1 then
+                local x, y, l = get_position(ent.uid)
+                module.spawn_custom_entity(c_type.custom_pickup_id, x, y, l, prng:random_float(PRNG_CLASS.PARTICLES)*0.2-0.1, 0.1)
+            end
+            custom_types[custom_id].entities[ent.uid] = nil
+        end
+    end
+    return custom_id
+end
+
+function module.set_powerup_drop(custom_powerup_id, custom_pickup_id)
+    custom_types[custom_powerup_id].custom_pickup_id = custom_pickup_id
+end
+
+function module.new_custom_pickup(set_func, update_func, pickup_func, custom_powerup_id, opt_ent_type)
+    local custom_id = #custom_types + 1
+    custom_types[custom_id] = {
+        ["update_callback"] = update_func,
+        ["pickup_callback"] = pickup_func,
+        ["custom_powerup_id"] = custom_powerup_id,
+        ["carry_type"] = CARRY_TYPE.HELD,
+        ["ent_type"] = opt_ent_type,
+        ["entities"] = {}
+    }
+    custom_types[custom_id].set = function(ent, c_data)
+        messpect("set")
+        ent.flags = set_flag(ent.flags, ENT_FLAG.DEAD)
+        return set_func(ent, c_data)
+    end
+    custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+        c_type.update_callback(ent, c_data)
+        if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) and ent.stand_counter > 15 and state.screen ~= SCREEN.TRANSITION then
+            for _, player in pairs(players) do
+                local has_powerup = custom_types[custom_powerup_id].entities[player.uid]
+                if player.health > 0 and (state.items.player_count == 1 or not has_powerup) and player:overlaps_with(ent) then
+                    c_type.pickup_callback(ent, player, c_data, has_powerup)
+                    if not has_powerup then
+                        module.set_custom_entity(player.uid, custom_powerup_id)
+                    end
+                    ent:destroy()
+                    break
+                end
+            end
+        end
+        if is_portal then
+            if ent.state ~= 24 and ent.last_state ~= 24 then
+                c_data.last_holder = ent.overlay
+            end
+        end
+    end
+    return custom_id
+end
+
+local get_item_sound = get_sound(VANILLA_SOUND.UI_GET_ITEM1)
+function module.do_pickup_effect(player_uid, texture_id, animation_frame)
+    local pickup_fx = get_entity(spawn_entity_over(ENT_TYPE.FX_PICKUPEFFECT, player_uid, 0, 0))
+    if texture_id then
+        pickup_fx:set_texture(texture_id)
+    end
+    pickup_fx.animation_frame = animation_frame
+    get_item_sound:play()
+    return pickup_fx
+end
+
+local nope_sound = get_sound(VANILLA_SOUND.SHOP_SHOP_NOPE)
+local buy_sound = get_sound(VANILLA_SOUND.SHOP_SHOP_BUY)
+function module.new_custom_purchasable_pickup(set_func, update_func, toreplace_custom_id)
+    local custom_id = #custom_types + 1
+    custom_types[custom_id] = {
+        ["update_callback"] = update_func,
+        ["carry_type"] = CARRY_TYPE.HELD,
+        ["ent_type"] = ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN,
+        ["entities"] = {}
+    }
+    custom_types[custom_id].set = function(ent, c_data)
+        messpect("set")
+        ent.flags = ent.flags | 268566560 --TAKE_NO_DAMAGE, PICKUPABLE, DEAD
+        ent.width, ent.height = 1.25, 1.25
+        ent.hitboxx, ent.hitboxy = 0.3, 0.38
+        ent.offsety = -0.05
+        return set_func(ent, c_data)
+    end
+    custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+        c_type.update_callback(ent, c_data)
+        if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
+            spawn_replacement(ent, toreplace_custom_id)
+            return
+        end
+        local dialog_container = get_entity(entity_get_items_by(ent.uid, ENT_TYPE.FX_SALEDIALOG_CONTAINER, MASK.ANY)[1])
+        if dialog_container.color.a > 0 then
+            for _, player in ipairs(players) do
+                if ent:overlaps_with(player) and player.standing_uid ~= -1 and player:is_button_pressed(BUTTON.DOOR) then
+                    local total_money = state.money_last_levels + state.money_shop_total
+                    for _, p in ipairs(players) do
+                        total_money = total_money + p.inventory.money
+                    end
+                    if total_money >= ent.price then
+                        player:add_money(-ent.price)
+                        state.money_shop_total = state.money_shop_total - ent.price
+                        buy_sound:play()
+                        local powerup_id = custom_types[toreplace_custom_id].custom_powerup_id
+                        local has_powerup = custom_types[powerup_id].entities[player.uid]
+                        if has_powerup and state.items.player_count ~= 1 then
+                            spawn_replacement(ent, toreplace_custom_id) --.stand_counter = 16
+                        else
+                            if not has_powerup then
+                                module.set_custom_entity(player.uid, powerup_id)
+                            end
+                            custom_types[toreplace_custom_id].pickup_callback(ent, player, c_data, has_powerup)
+                            ent:destroy()
+                        end
+                    else
+                        dialog_container.shake_amplitude = 0.07
+                        nope_sound:play()
+                    end
+                    break
+                end
+            end
+        end
+    end
+    return custom_id
+end
+
+function module.set_custom_entity(uid, custom_ent_id, optional_args)
     local ent = get_entity(uid)
-    custom_types[custom_ent_id].entities[uid] = custom_types[custom_ent_id].set(ent)
+    custom_types[custom_ent_id].entities[uid] = custom_types[custom_ent_id].set(ent, nil, optional_args)
+end
+
+function module.spawn_custom_entity(custom_ent_id, x, y, l, vel_x, vel_y, optional_args)
+    local uid = spawn(custom_types[custom_ent_id].ent_type, x, y, l, vel_x, vel_y)
+    local ent = get_entity(uid)
+    custom_types[custom_ent_id].entities[uid] = custom_types[custom_ent_id].set(ent, nil, optional_args)
+end
+
+function module.add_after_destroy_callback(custom_ent_id, callback)
+    custom_types[custom_ent_id].after_destroy_callback = callback
+end
+
+function module.get_custom_entity(ent_uid, custom_ent_id)
+    return custom_types[custom_ent_id].entities[ent_uid]
 end
 
 local function get_custom_item(custom_types_table)
@@ -564,8 +938,11 @@ local function set_custom_item_spawn_random(shop_type, x, y, l)
     end
 end
 
-local function set_custom_shop_spawns()
+local function set_custom_shop_spawns() --TODO: do something for purchsasable backpacks when shopkeeper angry
     set_pre_entity_spawn(function(type, x, y, l, overlay)
+        if (type == ENT_TYPE.ITEM_SHOTGUN or type == ENT_TYPE.ITEM_CROSSBOW) and y%1 > 0.04 and y%1 < 0.040001 then --when is a shotgun held by shopkeeper cause they're patrolling
+            return
+        end
         local rx, ry = get_room_index(x, y)
         local roomtype = get_room_template(rx, ry, l)
         if not overlay then
@@ -604,22 +981,33 @@ function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types)
     end
 end
 
+local toreplace_crate_content = {
+    ["custom_type_id"] = nil,
+    ["entity_type"] = nil
+}
 local function set_custom_container_spawns()
     set_post_entity_spawn(function(crate)
-        local function customize_drop(crate, killer_or_opener)
+        local function customize_drop(crate)
             local custom_type_id, entity_type = get_custom_item_from_chances(custom_types_container[crate.type.id])
             if custom_type_id then
-                local cb
-                set_contents(crate.uid, entity_type)
-                cb = set_post_entity_spawn(function(ent)
-                    module.set_custom_entity(ent.uid, custom_type_id)
-                    clear_callback(cb)
-                end, SPAWN_TYPE.ANY, MASK.ANY, crate.inside)
+                crate.inside = ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN
+                toreplace_crate_content.custom_type_id = custom_type_id
+                toreplace_crate_content.entity_type = entity_type
             end
         end
         set_on_kill(crate.uid, customize_drop)
         set_on_open(crate.uid, customize_drop)
     end, SPAWN_TYPE.ANY, MASK.ANY, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_GHIST_PRESENT})
+
+    set_pre_entity_spawn(function(_, x, y, layer, _, _) --this is immediately called after the kill or open, will work even when opening many crates at the same time
+        if toreplace_crate_content.custom_type_id then
+            local uid = spawn(toreplace_crate_content.entity_type, x, y, layer, prng:random_float(PRNG_CLASS.LEVEL_DECO)*0.2-0.1, 0.1)
+            module.set_custom_entity(uid, toreplace_crate_content.custom_type_id)
+
+            toreplace_crate_content.custom_type_id = nil
+            return uid
+        end
+    end, SPAWN_TYPE.SYSTEMIC, MASK.ANY, ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN)
     custom_container_items_set = true
 end
 
@@ -638,7 +1026,12 @@ end
 
 function module.set_price(entity, base_price, inflation) --made for the set_callback, for some reason you need to wait one frame and get the entity againt to make it work
     set_timeout(function()
-        get_entity(entity.uid).price = base_price+(state.level_count*inflation)
+        local _, y, l = get_position(entity.uid)
+        if test_flag(state.presence_flags, 2) and y < 80 and l == LAYER.BACK then --if black market
+            get_entity(entity.uid).price = base_price+inflation
+        else
+            get_entity(entity.uid).price = base_price+(state.level_count*inflation)
+        end
     end, 1)
 end
 

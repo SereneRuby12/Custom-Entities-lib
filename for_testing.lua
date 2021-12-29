@@ -141,7 +141,7 @@ set_callback(function()
     local turks = get_entities_by_type(ENT_TYPE.MOUNT_TURKEY)
     for _,uid in ipairs(turks) do
         local ent = get_entity(uid)
-        if ent:topmost() == ent and ent.rider_uid == -1 and math.random() > 0.3 then
+        if not ent.overlay and ent.rider_uid == -1 and math.random() > 0.3 then
             c_ent_lib.set_custom_entity(uid, custom_mount)
         end
     end

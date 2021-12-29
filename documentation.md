@@ -12,7 +12,7 @@ inits lib callbacks, if the bool is true then the update callbacks will be calle
 
 stops lib callbacks
 
-### :white_check_mark: int id new_custom_entity(function(entity, transition_data) set_func, function(entity, custom_ent_info) updatefunc, optional<CARRY_TYPE> carry_type, optional\<int\> ent_type) 
+### :white_check_mark: int id new_custom_entity(function(entity, transition_data, args) set_func, function(entity, custom_ent_info) updatefunc, optional<CARRY_TYPE> carry_type, optional\<int\> ent_type) 
 
 Set a new custom entity behiavour to be asigned in set_custom_entity()
 
@@ -22,15 +22,19 @@ The function should take care of items being taken to next levels, waddler, etc.
 
 For carry_type, use CARRY_TYPE.HELD or .MOUNT
 
-### :white_check_mark: void set_custom_entity(uid, custom_ent_id)
+### :white_check_mark: void set_custom_entity(uid, custom_ent_id, args)
 
-make a entity to be a custom one
+make a entity to be a custom one. The args are optional.
 
-### :red_circle: void spawn_custom_entity(custom_ent_id)
+### :white_check_mark: void spawn_custom_entity(custom_ent_id, x, y, l, vel_x, vel_y, args)
 
-spawn a custom entity
+spawn a custom entity. The args are optional. You could spawn a normal entity and use the set_custom_entity if you need to use any other spawn method like spawn_critical or spawn_on_floor, it would do the same thing.
 
 (requires ent_type on custom_ent to be set)
+
+### :white_check_mark: table get_custom_entity(uid, custom_ent_id)
+
+returns the data of the entity, or nil if it isn't a custom entity
 
 ### :white_check_mark: void add_custom_container_chance(custon_ent_id, chance_type, container_type/s)
 
@@ -104,19 +108,44 @@ It can be used by any entity capable of using weapons (Including shopkeepers, hi
 
 Using a shotgun will generate 6 bullets, calling the bulletfunc 6 times and aplying the recoil 6 times, so be careful if you apply an extra recoil to shotguns.
 
-### :white_check_mark: int id new_custom_purchasable_back(function(entity) set_func, function(entity, custom_ent_info) updatefunc, int animation_frame, int toreplace_custom_id, bool flammable)
+### int id new_custom_backpack(function(entity, transition_data) set_func, function(entity, custom_ent_info, holder) updatefunc, bool flammable)
+
+Uses jetpack as base entity, sets the fuel to 0.
+
+The holder is nil if it isn't being carried on the back of a player.
+
+### :white_check_mark: int id new_custom_purchasable_back(function(entity) set_func, function(entity, custom_ent_info) updatefunc, int toreplace_custom_id, bool flammable)
 
 (WIP) Spawns a rock, and changes some of the properties to make it look like a backpack, spawns the toreplace entity when the item isn't a shop item anymore (bought, shopkeeper angered, etc.)
 
-The custom item that will replace it must have a ent_type assinged.
+Flammable backpacks work, but shopkeepers don't shoot when is touched by magmaman.
 
-### :red_circle: int id set_custom_pickup(function() set_func, function() update_holder, optional\<int\> ent_type)
+The custom item that will replace it must have a ent_type assinged (custom backpacks have ITEM_JETPACK by default).
 
-Used for custom pickups, idk if I should add also an update function for updating the item itself.
+### :white_check_mark: int id new_custom_powerup(function(entity, transition_data) set_func, function(entity, custom_ent_info) updatefunc,  int texture_id, int row, int column, optional\<Color\> color)
 
-I'm thinking of making something different for custom pickups, so this might get removed.
+Create a new powerup for players, the last params (texture, row, etc.) are for the item rendering on the HUD. Make sure to use `set_powerup_drop()` after creating the pickup, it will spawn the pickup when a player dies and playing local multiplayer.
 
-### Notes for myself:
+### :white_check_mark: void set_powerup_drop(int powerup_id, int pickup_id)
 
-https://github.com/spelunky-fyi/overlunky/blob/main/examples/customized_crate_drops.lua
+Sets the pickup that will be dropped when a player dies with the powerup on multiplayer.
 
+### :white_check_mark: int id new_custom_pickup(function(entity, transition_data) set_func, function(entity, custom_ent_info, holder) updatefunc, function(entity, player, c_data, has_powerup) pickupfunc, int custom_powerup_id, entity_type)
+
+Create a new pickup, you can use the function `do_pickup_effect()` to spawn the pickup effect easily on the pickup function.
+
+### :white_check_mark: void do_pickup_effect(int player_uid, int texture_id, int animation_frame)
+
+Spawn a FX_PICKUPEFFECT on player_uid, and set its texture and animation_frame. Returns the fx entity.
+
+### :white_check_mark: int id new_custom_purchasable_pickup(function(entity, transition_data) set_func, function(entity, custom_ent_info) update_func, int custom_pickup_id)
+
+I couldn't make the normal pickup to be purchasable without it giving the base pickup, so this spawns an entity that acts like a pickup, and manually handles buying it.
+
+## Some examples
+- [Random custom entities](examples/example.lua)
+- [Custom gun](examples/Grapple_gun/grapple_gun.lua)
+- [Custom gun2](examples/lil_bomber_item_example/lil_bomber_custom_gun2.lua)
+- [Custom backpack](examples/ParachutePack.lua)
+- [Custom pickup](examples/pickup.lua)
+- [Another custom pickup](examples/pickup2.lua)
