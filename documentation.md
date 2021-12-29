@@ -32,6 +32,10 @@ spawn a custom entity. The args are optional. You could spawn a normal entity an
 
 (requires ent_type on custom_ent to be set)
 
+### :white_check_mark: table get_custom_entity(uid, custom_ent_id)
+
+returns the data of the entity, or nil if it isn't a custom entity
+
 ### :white_check_mark: void add_custom_container_chance(custon_ent_id, chance_type, container_type/s)
 
 set the chance of being in a container (only crate, present and ghist present).

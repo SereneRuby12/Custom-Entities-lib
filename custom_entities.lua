@@ -904,6 +904,10 @@ function module.add_after_destroy_callback(custom_ent_id, callback)
     custom_types[custom_ent_id].after_destroy_callback = callback
 end
 
+function module.get_custom_entity(ent_uid, custom_ent_id)
+    return custom_types[custom_ent_id].entities[ent_uid]
+end
+
 local function get_custom_item(custom_types_table)
     if #custom_types_table == 0 then
         return
