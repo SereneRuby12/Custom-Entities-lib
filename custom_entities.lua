@@ -5,6 +5,42 @@ meta = {
     description = "A library for creating custom entities"
 }
 --TODO: dice shop (PrizeDispenser?), clonegun
+
+
+local FLAGS_BIT = { --https://github.com/Mr-Auto/spelunky2-lua-libs/blob/main/libraries/flags/flags.lua
+    0x1,
+    0x2,
+    0x4,
+    0x8,
+    0x10,
+    0x20,
+    0x40,
+    0x80,
+    0x100,
+    0x200,
+    0x400,
+    0x800,
+    0x1000,
+    0x2000,
+    0x4000,
+    0x8000,
+    0x10000,
+    0x20000,
+    0x40000,
+    0x80000,
+    0x100000,
+    0x200000,
+    0x400000,
+    0x800000,
+    0x1000000,
+    0x2000000,
+    0x4000000,
+    0x8000000,
+    0x10000000,
+    0x20000000,
+    0x40000000,
+    0x80000000,
+}
 local module = {}
 local custom_types = {}
 
@@ -13,6 +49,7 @@ local cb_update, cb_loading, cb_transition, cb_post_room_gen, cb_post_level_gen 
 local custom_entities_t_info = {} --transition info
 local custom_entities_t_info_hh = {}
 local custom_entities_t_info_storage = {}
+local custom_entities_t_info_cog_ankh = {}
 local storage_pos = nil
 
 local CARRY_TYPE = {
@@ -29,7 +66,7 @@ local function join(a, b)
 end
 
 local shop_items = {ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_SKELETON_KEY, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_METAL_SHIELD, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_PICKUP_HEDJET, ENT_TYPE.ITEM_PICKUP_ROYALJELLY, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_WOODEN_ARROW, ENT_TYPE.ITEM_PICKUP_COOKEDTURKEY}
-local extra_shop_items = {ENT_TYPE.ITEM_LIGHT_ARROW, ENT_TYPE.ITEM_PICKUP_GIANTFOOD, ENT_TYPE.ITEM_PICKUP_ELIXIR, ENT_TYPE.ITEM_PICKUP_CLOVER, ENT_TYPE.ITEM_PICKUP_SPECIALCOMPASS, ENT_TYPE.ITEM_PICKUP_UDJATEYE, ENT_TYPE.ITEM_PICKUP_KAPALA, ENT_TYPE.ITEM_PICKUP_CROWN, ENT_TYPE.ITEM_PICKUP_EGGPLANTCROWN, ENT_TYPE.ITEM_PICKUP_TRUECROWN, ENT_TYPE.ITEM_PICKUP_ANKH, ENT_TYPE.ITEM_CLONEGUN, ENT_TYPE.ITEM_HOUYIBOW, ENT_TYPE.ITEM_WOODEN_SHIELD, ENT_TYPE.ITEM_LANDMINE, ENT_TYPE.ITEM_SNAP_TRAP} --scepter, vlads cape and the swords don't work
+local extra_shop_items = {ENT_TYPE.ITEM_LIGHT_ARROW, ENT_TYPE.ITEM_PICKUP_GIANTFOOD, ENT_TYPE.ITEM_PICKUP_ELIXIR, ENT_TYPE.ITEM_PICKUP_CLOVER, ENT_TYPE.ITEM_PICKUP_SPECIALCOMPASS, ENT_TYPE.ITEM_PICKUP_UDJATEYE, ENT_TYPE.ITEM_PICKUP_KAPALA, ENT_TYPE.ITEM_PICKUP_CROWN, ENT_TYPE.ITEM_PICKUP_EGGPLANTCROWN, ENT_TYPE.ITEM_PICKUP_TRUECROWN, ENT_TYPE.ITEM_PICKUP_ANKH, ENT_TYPE.ITEM_CLONEGUN, ENT_TYPE.ITEM_HOUYIBOW, ENT_TYPE.ITEM_WOODEN_SHIELD, ENT_TYPE.ITEM_LANDMINE, ENT_TYPE.ITEM_SNAP_TRAP}
 local all_shop_items = join(shop_items, extra_shop_items)
 local shop_guns = {ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CROSSBOW}
 local all_shop_ents = join(all_shop_items, shop_guns)
@@ -160,11 +197,11 @@ end
 
 local function update_customs()
     local is_portal = #get_entities_by_type(ENT_TYPE.FX_PORTAL) > 0
-    for _,c_type in ipairs(custom_types) do
+    for c_type_id, c_type in ipairs(custom_types) do
         for uid, c_data in pairs(c_type.entities) do
             local ent = get_entity(uid)
             if ent then
-                c_type.update(ent, c_data, c_type, is_portal)
+                c_type.update(ent, c_data, c_type, is_portal, c_type_id)
             else
                 if c_type.after_destroy_callback then
                     c_type.after_destroy_callback(c_data)
@@ -202,6 +239,7 @@ local function set_custom_ents_from_previous(companions)
                     custom_ent = p
                 end
                 custom_types[info.custom_type_id].entities[custom_ent.uid] = custom_types[info.custom_type_id].set(custom_ent, info.data)
+                break
             end
         end
     end
@@ -255,7 +293,7 @@ function module.init(game_frame)
                         else
                             holder = ent.overlay
                         end
-                        if holder then
+                        if holder and holder.type.search_flags & MASK.PLAYER == MASK.PLAYER then
                             if holder:worn_backitem() == uid then
                                 set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.BACK)
                             elseif holder.inventory.player_slot == -1 then
@@ -296,6 +334,13 @@ function module.init(game_frame)
                     end
                 end
             end
+            if custom_entities_t_info_cog_ankh[1] then
+                for _, info in ipairs(custom_entities_t_info_cog_ankh) do
+                    messpect('transition_cog', custom_entities_t_info_cog_ankh.custom_type_id)
+                    set_transition_info(info.custom_type_id, info.c_data, info.player_slot, CARRY_TYPE.POWERUP)
+                end
+            end
+            custom_entities_t_info_cog_ankh = {}
         end
     end, ON.LOADING)
 
@@ -700,7 +745,7 @@ item_hud_color.a = 0.4
 local function set_item_draw_callbacks()
     if not item_draw_callbacks_set then
         set_callback(function(render_ctx)
-            if not test_flag(state.pause, 1) and (state.screen == SCREEN.LEVEL or state.screen == SCREEN.CAMP) then --state.paused is probably flags, 1 is the pause menu
+            if not test_flag(state.pause, 1) and state.level_flags & (FLAGS_BIT[21] | FLAGS_BIT[22]) == 0 then --(state.screen == SCREEN.LEVEL or state.screen == SCREEN.CAMP) then --state.paused is probably flags, 1 is the pause menu
                 for i, v in ipairs(player_items_draw) do
                     for i1, draw_info in ipairs(v) do
                         local y1, x1 = 0.74, -0.95+((i1-1)*0.04)+((i-1)*0.32)
@@ -712,20 +757,31 @@ local function set_item_draw_callbacks()
         end, ON.RENDER_POST_HUD)
 
         set_callback(function()
+            local players_existing = 0
             for _, player in ipairs(players) do
                 if test_flag(player.flags, ENT_FLAG.DEAD) and not entity_has_item_type(player.uid, ENT_TYPE.ITEM_POWERUP_ANKH) then
-                    player_items_draw[player.inventory.player_slot] = {}
+                    if player_items_draw[player.inventory.player_slot][1] then
+                        messpect("clear", player.inventory.player_slot)
+                        player_items_draw[player.inventory.player_slot] = {}
+                        messpect("pid", player_items_draw)
+                    end
+                end
+                players_existing = players_existing | FLAGS_BIT[player.inventory.player_slot]
+            end
+            for slot=1, state.items.player_count do
+                if players_existing & FLAGS_BIT[slot] == 0 then
+                    if player_items_draw[slot][1] then
+                        messpect("clear", slot)
+                        player_items_draw[slot] = {}
+                    end
                 end
             end
         end, ON.GAMEFRAME)
 
         set_callback(function()
             player_items_draw = {{}, {}, {}, {}}
-        end, ON.START)
-
-        set_callback(function()
-            player_items_draw = {{}, {}, {}, {}}
-        end, ON.CAMP)
+        end, ON.PRE_LEVEL_GENERATION)
+        item_draw_callbacks_set = true
     end
 end
 
@@ -758,19 +814,30 @@ function module.new_custom_powerup(set_func, update_func, texture_id, row, colum
     custom_types[custom_id].item_draw_info = item_draw_info
 
     custom_types[custom_id].set = function(ent, prev_c_data)
-        if not prev_c_data then
-            module.add_player_item_draw(ent.inventory.player_slot, item_draw_info)
-        end
+        module.add_player_item_draw(ent.inventory.player_slot, item_draw_info)
         return set_func(ent, prev_c_data)
     end
-    custom_types[custom_id].update = function(ent, c_data, c_type)
+    custom_types[custom_id].update = function(ent, c_data, c_type, _, c_type_id)
         c_type.update_callback(ent, c_data)
-        if test_flag(ent.flags, ENT_FLAG.DEAD) and not entity_has_item_type(ent.uid, ENT_TYPE.ITEM_POWERUP_ANKH)  then
-            if state.items.player_count ~= 1 then
-                local x, y, l = get_position(ent.uid)
-                module.spawn_custom_entity(c_type.custom_pickup_id, x, y, l, prng:random_float(PRNG_CLASS.PARTICLES)*0.2-0.1, 0.1)
+        if test_flag(ent.flags, ENT_FLAG.DEAD) then
+            if not entity_has_item_type(ent.uid, ENT_TYPE.ITEM_POWERUP_ANKH) then
+                if state.items.player_count ~= 1 then
+                    local x, y, l = get_position(ent.uid)
+                    module.spawn_custom_entity(c_type.custom_pickup_id, x, y, l, prng:random_float(PRNG_CLASS.PARTICLES)*0.2-0.1, 0.1)
+                end
             end
-            custom_types[custom_id].entities[ent.uid] = nil
+            c_type.entities[ent.uid] = nil
+            messpect(ent:has_powerup(ENT_TYPE.ITEM_POWERUP_ANKH), entity_has_item_type(ent.uid, ENT_TYPE.ITEM_POWERUP_ANKH) )
+        else
+            if state.theme == THEME.CITY_OF_GOLD and ent.idle_counter == 19 and ent.standing_on_uid ~= -1 and ent:standing_on().type.id == ENT_TYPE.FLOOR_ALTAR and ent:has_powerup(ENT_TYPE.ITEM_POWERUP_ANKH) and ent.stun_timer > 0 then
+                custom_entities_t_info_cog_ankh[#custom_entities_t_info_cog_ankh+1] = {
+                    custom_type_id = c_type_id,
+                    c_data = c_data,
+                    player_slot = ent.inventory.player_slot
+                }
+                c_type.entities[ent.uid] = nil
+                messpect('added')
+            end
         end
     end
     return custom_id
@@ -945,7 +1012,7 @@ local function set_custom_shop_spawns() --TODO: do something for purchsasable ba
         end
         local rx, ry = get_room_index(x, y)
         local roomtype = get_room_template(rx, ry, l)
-        if not overlay then
+        if not overlay then --TODO: check if this is necessary? (if not overlay)
             if roomtype == ROOM_TEMPLATE.SHOP or roomtype == ROOM_TEMPLATE.SHOP_LEFT then
                 return set_custom_item_spawn_random(custom_types_shop[state.level_gen.shop_type], x, y, l)
             elseif roomtype == ROOM_TEMPLATE.CURIOSHOP or roomtype == ROOM_TEMPLATE.CURIOSHOP_LEFT then
