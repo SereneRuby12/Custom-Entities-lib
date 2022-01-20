@@ -8,38 +8,38 @@ meta = {
 
 
 local FLAGS_BIT = { --https://github.com/Mr-Auto/spelunky2-lua-libs/blob/main/libraries/flags/flags.lua
-    0x1,
-    0x2,
-    0x4,
-    0x8,
-    0x10,
-    0x20,
-    0x40,
-    0x80,
-    0x100,
-    0x200,
-    0x400,
-    0x800,
-    0x1000,
-    0x2000,
-    0x4000,
-    0x8000,
-    0x10000,
-    0x20000,
-    0x40000,
-    0x80000,
-    0x100000,
-    0x200000,
-    0x400000,
-    0x800000,
-    0x1000000,
-    0x2000000,
-    0x4000000,
-    0x8000000,
-    0x10000000,
-    0x20000000,
-    0x40000000,
-    0x80000000,
+0x1,
+0x2,
+0x4,
+0x8,
+0x10,
+0x20,
+0x40,
+0x80,
+0x100,
+0x200,
+0x400,
+0x800,
+0x1000,
+0x2000,
+0x4000,
+0x8000,
+0x10000,
+0x20000,
+0x40000,
+0x80000,
+0x100000,
+0x200000,
+0x400000,
+0x800000,
+0x1000000,
+0x2000000,
+0x4000000,
+0x8000000,
+0x10000000,
+0x20000000,
+0x40000000,
+0x80000000,
 }
 local module = {}
 local custom_types = {}
@@ -59,6 +59,15 @@ local CARRY_TYPE = {
     ["POWERUP"] = 4
 }
 
+local function has(arr, item)
+    for _, v in ipairs(arr) do
+        if v == item then
+            return true
+        end
+    end
+    return false
+end
+
 local function join(a, b)
     local result = {table.unpack(a)}
     table.move(b, 1, #b, #result + 1, result)
@@ -70,7 +79,7 @@ local extra_shop_items = {ENT_TYPE.ITEM_LIGHT_ARROW, ENT_TYPE.ITEM_PICKUP_GIANTF
 local all_shop_items = join(shop_items, extra_shop_items)
 local shop_guns = {ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CROSSBOW}
 local all_shop_ents = join(all_shop_items, shop_guns)
---local shop_rooms = {ROOM_TEMPLATE.SHOP, ROOM_TEMPLATE.SHOP_LEFT, ROOM_TEMPLATE.CURIOSHOP, ROOM_TEMPLATE.CURIOSHOP_LEFT, ROOM_TEMPLATE.CAVEMANSHOP, ROOM_TEMPLATE.CAVEMANSHOP_LEFT}
+local normal_shop_rooms = {ROOM_TEMPLATE.SHOP, ROOM_TEMPLATE.SHOP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_UP, ROOM_TEMPLATE.SHOP_ENTRANCE_UP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN_LEFT}
 
 local function new_chances()
     return {
@@ -626,6 +635,8 @@ local function set_nonflammable_backs_callbacks()
     nonflammable_backs_callbacks_set = true
 end
 
+local yellow = Color:yellow()
+
 function module.new_custom_backpack(set_func, update_func, flammable)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
@@ -665,7 +676,10 @@ function module.new_custom_backpack(set_func, update_func, flammable)
         end
     else
         custom_types[custom_id].set = function(ent, c_data)
-            set_on_kill(ent.uid, function(entity) --TODO: add fx
+            set_on_kill(ent.uid, function(entity)
+                generate_world_particles(PARTICLEEMITTER.ITEM_CRUSHED_SPARKS, entity.uid)
+                local x, y = get_position(entity.uid)
+                create_illumination(yellow, 1.0, x, y).brightness = 2.0
                 move_entity(entity.uid, 0, -123, 0, 0)
             end)
             ent.flags = set_flag(ent.flags, ENT_FLAG.TAKE_NO_DAMAGE)
@@ -859,7 +873,7 @@ function module.new_custom_pickup(set_func, update_func, pickup_func, custom_pow
     }
     custom_types[custom_id].set = function(ent, c_data)
         messpect("set")
-        ent.flags = set_flag(ent.flags, ENT_FLAG.DEAD)
+        ent.more_flags = set_flag(ent.more_flags, 22)
         return set_func(ent, c_data)
     end
     custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
@@ -897,60 +911,55 @@ function module.do_pickup_effect(player_uid, texture_id, animation_frame)
     return pickup_fx
 end
 
-local nope_sound = get_sound(VANILLA_SOUND.SHOP_SHOP_NOPE)
-local buy_sound = get_sound(VANILLA_SOUND.SHOP_SHOP_BUY)
+local function spawn_pickup_replacement(ent, c_data, toreplace_custom_id)
+    local powerup_id = custom_types[toreplace_custom_id].custom_powerup_id
+    local buyer
+    if ent.overlay and ent.overlay.search_flags == MASK.PLAYER then
+        buyer = ent.overlay
+    else
+        for _, player in ipairs(players) do
+            if ent:overlaps_with(player) and player.standing_uid ~= -1 and player:is_button_pressed(BUTTON.DOOR) then
+                buyer = player
+                break
+            end
+        end
+    end
+    if buyer then
+        local has_powerup = module.get_custom_entity(buyer.uid, powerup_id)
+        if has_powerup and state.items.player_count ~= 1 then
+            spawn_replacement(ent, toreplace_custom_id)
+        else
+            if not has_powerup then
+                module.set_custom_entity(buyer.uid, powerup_id)
+            end
+            custom_types[toreplace_custom_id].pickup_callback(ent, buyer, c_data, has_powerup)
+            ent:destroy()
+        end
+    else
+        spawn_replacement(ent, toreplace_custom_id)
+    end
+end
+
 function module.new_custom_purchasable_pickup(set_func, update_func, toreplace_custom_id)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
         ["update_callback"] = update_func,
         ["carry_type"] = CARRY_TYPE.HELD,
-        ["ent_type"] = ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN,
+        ["ent_type"] = ENT_TYPE.ITEM_ROCK,
         ["entities"] = {}
     }
     custom_types[custom_id].set = function(ent, c_data)
         messpect("set")
-        ent.flags = ent.flags | 268566560 --TAKE_NO_DAMAGE, PICKUPABLE, DEAD
+        ent.more_flags = set_flag(ent.more_flags, 22)
         ent.width, ent.height = 1.25, 1.25
         ent.hitboxx, ent.hitboxy = 0.3, 0.38
         ent.offsety = -0.05
         return set_func(ent, c_data)
     end
-    custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
+    custom_types[custom_id].update = function(ent, c_data, c_type, _)
         c_type.update_callback(ent, c_data)
         if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
-            spawn_replacement(ent, toreplace_custom_id)
-            return
-        end
-        local dialog_container = get_entity(entity_get_items_by(ent.uid, ENT_TYPE.FX_SALEDIALOG_CONTAINER, MASK.ANY)[1])
-        if dialog_container.color.a > 0 then
-            for _, player in ipairs(players) do
-                if ent:overlaps_with(player) and player.standing_uid ~= -1 and player:is_button_pressed(BUTTON.DOOR) then
-                    local total_money = state.money_last_levels + state.money_shop_total
-                    for _, p in ipairs(players) do
-                        total_money = total_money + p.inventory.money
-                    end
-                    if total_money >= ent.price then
-                        player:add_money(-ent.price)
-                        state.money_shop_total = state.money_shop_total - ent.price
-                        buy_sound:play()
-                        local powerup_id = custom_types[toreplace_custom_id].custom_powerup_id
-                        local has_powerup = custom_types[powerup_id].entities[player.uid]
-                        if has_powerup and state.items.player_count ~= 1 then
-                            spawn_replacement(ent, toreplace_custom_id) --.stand_counter = 16
-                        else
-                            if not has_powerup then
-                                module.set_custom_entity(player.uid, powerup_id)
-                            end
-                            custom_types[toreplace_custom_id].pickup_callback(ent, player, c_data, has_powerup)
-                            ent:destroy()
-                        end
-                    else
-                        dialog_container.shake_amplitude = 0.07
-                        nope_sound:play()
-                    end
-                    break
-                end
-            end
+            spawn_pickup_replacement(ent, c_data, toreplace_custom_id)
         end
     end
     return custom_id
@@ -1013,7 +1022,7 @@ local function set_custom_shop_spawns() --TODO: do something for purchsasable ba
         local rx, ry = get_room_index(x, y)
         local roomtype = get_room_template(rx, ry, l)
         if not overlay then --TODO: check if this is necessary? (if not overlay)
-            if roomtype == ROOM_TEMPLATE.SHOP or roomtype == ROOM_TEMPLATE.SHOP_LEFT then
+            if has(normal_shop_rooms, roomtype) then
                 return set_custom_item_spawn_random(custom_types_shop[state.level_gen.shop_type], x, y, l)
             elseif roomtype == ROOM_TEMPLATE.CURIOSHOP or roomtype == ROOM_TEMPLATE.CURIOSHOP_LEFT then
                 return set_custom_item_spawn_random(custom_types_tun_shop, x, y, l)
