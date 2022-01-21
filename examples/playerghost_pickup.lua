@@ -52,7 +52,7 @@ local function powerup_set_func(ent)
 end
 
 local function powerup_update_func(ent, c_data)
-    if test_flag(ent.flags, ENT_FLAG.DEAD) then
+    if test_flag(ent.flags, ENT_FLAG.DEAD) and not ent:has_powerup(ENT_TYPE.ITEM_POWERUP_ANKH) then
         local chain_id = celib.custom_types[ghost_id].entities[c_data.ghost_uid].chain_id
         messpect(#get_entities_by_type(ENT_TYPE.ITEM_PLAYERGHOST), 'ghosts')
         if ghost_chains[chain_id] then
@@ -73,7 +73,7 @@ local function powerup_update_func(ent, c_data)
             end, 1)
         end
 
-        clear_entity_callback(c_data.ghost_uid, celib.custom_types[ghost_id].entities[c_data.ghost_uid].statemachine)
+        clear_entity_callback(c_data.ghost_uid, celib.get_custom_entity(c_data.ghost_uid, ghost_id).statemachine)
         celib.custom_types[ghost_id].entities[c_data.ghost_uid] = nil
         return
     end
@@ -81,9 +81,9 @@ local function powerup_update_func(ent, c_data)
         if not c_data.is_button_held and c_data.ghost_uid ~= -1 then
             if c_data.controlling_ghost then
                 return_input(ent.uid)
-                celib.custom_types[ghost_id].entities[c_data.ghost_uid].just_changed = true
+                celib.get_custom_entity(c_data.ghost_uid, ghost_id).just_changed = true
             else
-                celib.custom_types[ghost_id].entities[c_data.ghost_uid].just_changed = true
+                celib.get_custom_entity(c_data.ghost_uid, ghost_id).just_changed = true
                 steal_input(ent.uid)
             end
             c_data.controlling_ghost = not c_data.controlling_ghost
@@ -107,14 +107,14 @@ end
 local function pickup_update_func()
 end
 
-local function pickup_picked_func(_, player, _, has_pickup)
+local function pickup_picked_func(_, player)
     celib.do_pickup_effect(player.uid, mirror_texture_id, 0)
 end
 
 local function chained_ghost_set(ent, _, player_uid)
     ent.flags = set_flag(ent.flags, ENT_FLAG.INVISIBLE)
     local statemachine = set_post_statemachine(ent.uid, function(entity)
-        local c_data = celib.custom_types[ghost_id].entities[entity.uid]
+        local c_data = celib.get_custom_entity(entity.uid, ghost_id) --celib.custom_types[ghost_id].entities[entity.uid]
         if c_data.changing then
             if c_data.increasing_alpha then
                 c_data.alpha = c_data.alpha + 0.075
@@ -196,7 +196,7 @@ ghost_id = celib.new_custom_entity(chained_ghost_set, chained_ghost_update, nil)
 
 celib.add_custom_container_chance(pickup_id, celib.CHANCE.COMMON, ENT_TYPE.ITEM_GHIST_PRESENT)
 
-celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.LOW, {celib.SHOP_TYPE.CAVEMAN, celib.SHOP_TYPE.TUN})
+celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.LOW, {celib.SHOP_TYPE.CAVEMAN, celib.SHOP_TYPE.TUN}) --celib.CHANCE.COMMON, celib.ALL_SHOPS
 
 set_callback(function()
     local x, y, l = get_position(players[1].uid)
