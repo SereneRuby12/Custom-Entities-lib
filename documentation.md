@@ -76,14 +76,16 @@ Sets the price of an entity for the level. Use this only in the set function for
 - `SPECIALTY_SHOP` 3
 - `HIRED_HAND_SHOP` 4
 - `PET_SHOP` 5
-- `DICE_SHOP` 6
-- `TUSK_DICE_SHOP` 13
-- `TUN` 77
-- `CAVEMAN` 79
+- `DICESHOP` 75 (ROOM_TEMPLATE.DICESHOP)
+- `TUSKDICESHOP` 83 (ROOM_TEMPLATE.TUSKDICESHOP)
+- `TUN` 77 (ROOM_TEMPLATE.CURIOSHOP)
+- `CAVEMAN` 79 (ROOM_TEMPLATE.CAVEMANSHOP)
 
 ### **CARRY_TYPE**
 - `HELD` 1 (items and backpacks)
 - `MOUNT` 2
+- `BACK` 3 (used only in the lib, for backitems use HELD)
+- `POWERUP` 4
 ### ALL_SHOPS
 
 A table containing all the shop types
@@ -143,7 +145,7 @@ Spawn a FX_PICKUPEFFECT on player_uid, and set its texture and animation_frame. 
 I couldn't make the normal pickup to be purchasable without it giving the base pickup, so this spawns an entity that acts like a pickup, and manually handles buying it.
 
 ## Some examples
-- [Random custom entities](examples/example.lua)
+- [Some random custom entities](examples/example.lua)
 - [Custom gun](examples/Grapple_gun/grapple_gun.lua)
 - [Custom gun2](examples/lil_bomber_item_example/lil_bomber_custom_gun2.lua)
 - [Custom backpack](examples/ParachutePack.lua)

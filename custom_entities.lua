@@ -53,10 +53,10 @@ local custom_entities_t_info_cog_ankh = {}
 local storage_pos = nil
 
 local CARRY_TYPE = {
-    ["HELD"] = 1,
-    ["MOUNT"] = 2,
-    ["BACK"] = 3,
-    ["POWERUP"] = 4
+    HELD = 1,
+    MOUNT = 2,
+    BACK = 3,
+    POWERUP = 4
 }
 
 local function has(arr, item)
@@ -75,22 +75,24 @@ local function join(a, b)
 end
 
 local shop_items = {ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_SKELETON_KEY, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_METAL_SHIELD, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_PICKUP_HEDJET, ENT_TYPE.ITEM_PICKUP_ROYALJELLY, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_WOODEN_ARROW, ENT_TYPE.ITEM_PICKUP_COOKEDTURKEY}
-local extra_shop_items = {ENT_TYPE.ITEM_LIGHT_ARROW, ENT_TYPE.ITEM_PICKUP_GIANTFOOD, ENT_TYPE.ITEM_PICKUP_ELIXIR, ENT_TYPE.ITEM_PICKUP_CLOVER, ENT_TYPE.ITEM_PICKUP_SPECIALCOMPASS, ENT_TYPE.ITEM_PICKUP_UDJATEYE, ENT_TYPE.ITEM_PICKUP_KAPALA, ENT_TYPE.ITEM_PICKUP_CROWN, ENT_TYPE.ITEM_PICKUP_EGGPLANTCROWN, ENT_TYPE.ITEM_PICKUP_TRUECROWN, ENT_TYPE.ITEM_PICKUP_ANKH, ENT_TYPE.ITEM_CLONEGUN, ENT_TYPE.ITEM_HOUYIBOW, ENT_TYPE.ITEM_WOODEN_SHIELD, ENT_TYPE.ITEM_LANDMINE, ENT_TYPE.ITEM_SNAP_TRAP}
-local all_shop_items = join(shop_items, extra_shop_items)
 local shop_guns = {ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CROSSBOW}
-local all_shop_ents = join(all_shop_items, shop_guns)
+local all_shop_ents = join(shop_items, shop_guns)
 local normal_shop_rooms = {ROOM_TEMPLATE.SHOP, ROOM_TEMPLATE.SHOP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_UP, ROOM_TEMPLATE.SHOP_ENTRANCE_UP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN_LEFT}
+local DICESHOP_ROOMS = {ROOM_TEMPLATE.DICESHOP, ROOM_TEMPLATE.DICESHOP_LEFT, ROOM_TEMPLATE.TUSKDICESHOP, ROOM_TEMPLATE.TUSKDICESHOP_LEFT}
+local DICESHOP_ITEMS = {ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CROSSBOW, ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK}
 
 local function new_chances()
     return {
-        ["common"] = {},
-        ["low"] = {},
-        ["lower"] = {}
+        common = {},
+        low = {},
+        lower = {}
     }
 end
 local custom_types_shop = {new_chances(), new_chances(), new_chances(), new_chances(), new_chances(), new_chances(), [0] = new_chances(), [13] = new_chances()} --SHOP_TYPE
 local custom_types_tun_shop = new_chances()
 local custom_types_caveman_shop = new_chances()
+local custom_types_diceshop = new_chances()
+local custom_types_tuskdiceshop = new_chances()
 local custom_shop_items_set = false --if the set_pre_entity_spawn for custom shop items was already set
 
 local custom_types_container = {
@@ -111,94 +113,94 @@ local just_burnt, last_burn = 0, 0 --for non_flammable backpacks
 
 --chance type
 module.CHANCE = {
-    ["COMMON"] = "common",
-    ["LOW"] = "low",
-    ["LOWER"] = "lower"
+    COMMON = "common",
+    LOW = "low",
+    LOWER = "lower"
 }
 --SHOP_TYPE
 local SHOP_ROOM_TYPES = {
-    ["GENERAL_STORE"] = 0,
-    ["CLOTHING_SHOP"] = 1,
-    ["WEAPON_SHOP"] = 2,
-    ["SPECIALTY_SHOP"] = 3,
-    ["HIRED_HAND_SHOP"] = 4,
-    ["PET_SHOP"] = 5,
-    ["DICE_SHOP"] = 6,
-    ["TUSK_DICE_SHOP"] = 13,
-    ["TUN"] = 77,
-    ["CAVEMAN"] = 79
+    GENERAL_STORE = 0,
+    CLOTHING_SHOP = 1,
+    WEAPON_SHOP = 2,
+    SPECIALTY_SHOP = 3,
+    HIRED_HAND_SHOP = 4,
+    PET_SHOP = 5,
+    DICESHOP = ROOM_TEMPLATE.DICESHOP, --75
+    TUSKDICESHOP = ROOM_TEMPLATE.TUSKDICESHOP,
+    TUN = ROOM_TEMPLATE.CURIOSHOP, --77
+    CAVEMAN = ROOM_TEMPLATE.CAVEMANSHOP --79
 }
 
-module.ALL_SHOPS = {SHOP_ROOM_TYPES.GENERAL_STORE, SHOP_ROOM_TYPES.CLOTHING_SHOP, SHOP_ROOM_TYPES.WEAPON_SHOP, SHOP_ROOM_TYPES.SPECIALTY_SHOP, SHOP_ROOM_TYPES.HIRED_HAND_SHOP, SHOP_ROOM_TYPES.PET_SHOP, SHOP_ROOM_TYPES.DICE_SHOP, SHOP_ROOM_TYPES.TUSK_DICE_SHOP, SHOP_ROOM_TYPES.TUN, SHOP_ROOM_TYPES.CAVEMAN}
+module.ALL_SHOPS = {SHOP_ROOM_TYPES.GENERAL_STORE, SHOP_ROOM_TYPES.CLOTHING_SHOP, SHOP_ROOM_TYPES.WEAPON_SHOP, SHOP_ROOM_TYPES.SPECIALTY_SHOP, SHOP_ROOM_TYPES.HIRED_HAND_SHOP, SHOP_ROOM_TYPES.PET_SHOP, SHOP_ROOM_TYPES.DICESHOP, SHOP_ROOM_TYPES.TUSKDICESHOP, SHOP_ROOM_TYPES.TUN, SHOP_ROOM_TYPES.CAVEMAN}
 
 local weapon_info = {
     [ENT_TYPE.ITEM_SHOTGUN] = {
-        ["bullet"] = ENT_TYPE.ITEM_BULLET,
-        ["bullet_off_y"] = 0.099998474121094,
-        ["sound"] = VANILLA_SOUND.ITEMS_SHOTGUN_FIRE,
-        ["shots"] = 0,
-        ["callb_set"] = false,
-        ["sound_callb_set"] = false
+        bullet = ENT_TYPE.ITEM_BULLET,
+        bullet_off_y = 0.099998474121094,
+        sound = VANILLA_SOUND.ITEMS_SHOTGUN_FIRE,
+        shots = 0,
+        callb_set = false,
+        sound_callb_set = false
     },
     [ENT_TYPE.ITEM_FREEZERAY] = {
-        ["bullet"] = ENT_TYPE.ITEM_FREEZERAYSHOT,
-        ["bullet_off_y"] = 0.12000274658203,
-        ["sound"] = VANILLA_SOUND.ITEMS_FREEZE_RAY,
-        ["shots"] = 0,
-        ["callb_set"] = false,
-        ["sound_callb_set"] = false
+        bullet = ENT_TYPE.ITEM_FREEZERAYSHOT,
+        bullet_off_y = 0.12000274658203,
+        sound = VANILLA_SOUND.ITEMS_FREEZE_RAY,
+        shots = 0,
+        callb_set = false,
+        sound_callb_set = false
     },
     [ENT_TYPE.ITEM_PLASMACANNON] = {
-        ["bullet"] = ENT_TYPE.ITEM_PLASMACANNON_SHOT,
-        ["bullet_off_y"] = 0.0,
-        ["sound"] = VANILLA_SOUND.ITEMS_PLASMA_CANNON,
-        ["shots"] = 0,
-        ["callb_set"] = false,
-        ["sound_callb_set"] = false
+        bullet = ENT_TYPE.ITEM_PLASMACANNON_SHOT,
+        bullet_off_y = 0.0,
+        sound = VANILLA_SOUND.ITEMS_PLASMA_CANNON,
+        shots = 0,
+        callb_set = false,
+        sound_callb_set = false
     },
     [ENT_TYPE.ITEM_CLONEGUN] = {
-        ["bullet"] = ENT_TYPE.ITEM_CLONEGUNSHOT,
-        ["bullet_off_y"] = 0.12000274658203,
-        ["sound"] = VANILLA_SOUND.ITEMS_CLONE_GUN,
-        ["shots"] = 0,
-        ["callb_set"] = false,
-        ["sound_callb_set"] = false
+        bullet = ENT_TYPE.ITEM_CLONEGUNSHOT,
+        bullet_off_y = 0.12000274658203,
+        sound = VANILLA_SOUND.ITEMS_CLONE_GUN,
+        shots = 0,
+        callb_set = false,
+        sound_callb_set = false
     },
 }
 
 local function set_transition_info(c_type_id, data, slot, carry_type)
     table.insert(custom_entities_t_info,
     {
-        ["custom_type_id"] = c_type_id,
-        ["data"] = data,
-        ["slot"] = slot,
-        ["carry_type"] = carry_type
+        custom_type_id = c_type_id,
+        data = data,
+        slot = slot,
+        carry_type = carry_type
     })
 end
 
 local function set_transition_info_hh(c_type_id, data, e_type, hp, cursed, poisoned)
     table.insert(custom_entities_t_info_hh,
     {
-        ["custom_type_id"] = c_type_id,
-        ["data"] = data,
-        ["e_type"] = e_type,
-        ["hp"] = hp,
-        ["cursed"] = cursed,
-        ["poisoned"] = poisoned
+        custom_type_id = c_type_id,
+        data = data,
+        e_type = e_type,
+        hp = hp,
+        cursed = cursed,
+        poisoned = poisoned
     })
 end
 
 local function set_transition_info_storage(c_type_id, data, e_type)
     if custom_entities_t_info_storage[e_type] then
         table.insert(custom_entities_t_info_storage[e_type], {
-            ["custom_type_id"] = c_type_id,
-            ["data"] = data
+            custom_type_id = c_type_id,
+            data = data
         })
     else
         custom_entities_t_info_storage[e_type] = {
             {
-                ["custom_type_id"] = c_type_id,
-                ["data"] = data
+                custom_type_id = c_type_id,
+                data = data
             }
         }
     end
@@ -386,11 +388,11 @@ end
 function module.new_custom_entity(set_func, update_func, carry_type, opt_ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
-        ["set"] = set_func,
-        ["update_callback"] = update_func,
-        ["carry_type"] = carry_type,
-        ["ent_type"] = opt_ent_type,
-        ["entities"] = {}
+        set = set_func,
+        update_callback = update_func,
+        carry_type = carry_type,
+        ent_type = opt_ent_type,
+        entities = {}
     }
 
     if carry_type == CARRY_TYPE.HELD then
@@ -423,15 +425,15 @@ end
 function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil_x, recoil_y, opt_ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
-        ["set"] = set_func,
-        ["update_callback"] = update_func,
-        ["carry_type"] = CARRY_TYPE.HELD,
-        ["ent_type"] = opt_ent_type,
-        ["shoot"] = firefunc,
-        ["cooldown"] = cooldown,
-        ["recoil_x"] = recoil_x,
-        ["recoil_y"] = recoil_y,
-        ["entities"] = {}
+        set = set_func,
+        update_callback = update_func,
+        carry_type = CARRY_TYPE.HELD,
+        ent_type = opt_ent_type,
+        shoot = firefunc,
+        cooldown = cooldown,
+        recoil_x = recoil_x,
+        recoil_y = recoil_y,
+        entities = {}
     }
     custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
         ent.cooldown = math.max(ent.cooldown, 2)
@@ -504,17 +506,17 @@ end
 function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, recoil_x, recoil_y, ent_type, mute_sound)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
-        ["set"] = set_func,
-        ["update_callback"] = update_func,
-        ["carry_type"] = CARRY_TYPE.HELD,
-        ["ent_type"] = ent_type,
-        ["bulletfunc"] = bulletfunc,
-        ["cooldown"] = cooldown,
-        ["recoil_x"] = recoil_x,
-        ["recoil_y"] = recoil_y,
-        ["not_shot"] = true,
-        ["mute_sound"] = mute_sound,
-        ["entities"] = {}
+        set = set_func,
+        update_callback = update_func,
+        carry_type = CARRY_TYPE.HELD,
+        ent_type = ent_type,
+        bulletfunc = bulletfunc,
+        cooldown = cooldown,
+        recoil_x = recoil_x,
+        recoil_y = recoil_y,
+        not_shot = true,
+        mute_sound = mute_sound,
+        entities = {}
     }
     if not weapon_info[ent_type].callb_set then
         set_custom_bullet_callback(ent_type)
@@ -565,8 +567,8 @@ local back_warn_sound = get_sound(VANILLA_SOUND.ITEMS_BACKPACK_WARN)
 function module.new_custom_purchasable_back(set_func, update_func, toreplace_custom_id, flammable)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
-        ["update_callback"] = update_func,
-        ["entities"] = {}
+        update_callback = update_func,
+        entities = {}
     }
     if flammable then
         custom_types[custom_id].ent_type = ENT_TYPE.ITEM_ROCK
@@ -640,10 +642,10 @@ local yellow = Color:yellow()
 function module.new_custom_backpack(set_func, update_func, flammable)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
-        ["update_callback"] = update_func,
-        ["carry_type"] = CARRY_TYPE.HELD,
-        ["ent_type"] = ENT_TYPE.ITEM_JETPACK,
-        ["entities"] = {}
+        update_callback = update_func,
+        carry_type = CARRY_TYPE.HELD,
+        ent_type = ENT_TYPE.ITEM_JETPACK,
+        entities = {}
     }
     if flammable then
         custom_types[custom_id].set = set_func
@@ -802,10 +804,10 @@ end
 function module.new_item_draw_info(texture_id, row, column, color)
     color = color ~= nil and color or item_hud_color
     return {
-        ["texture_id"] = texture_id,
-        ["row"] = row,
-        ["column"] = column,
-        ["color"] = color
+        texture_id = texture_id,
+        row = row,
+        column = column,
+        color = color
     }
 end
 
@@ -819,10 +821,10 @@ end
 function module.new_custom_powerup(set_func, update_func, texture_id, row, column, color)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
-        ["update_callback"] = update_func,
+        update_callback = update_func,
         --custom_pickup_id to be set on set_powerup_drop
-        ["carry_type"] = CARRY_TYPE.POWERUP,
-        ["entities"] = {}
+        carry_type = CARRY_TYPE.POWERUP,
+        entities = {}
     }
     local item_draw_info = module.new_item_draw_info(texture_id, row, column, color)
     custom_types[custom_id].item_draw_info = item_draw_info
@@ -864,12 +866,12 @@ end
 function module.new_custom_pickup(set_func, update_func, pickup_func, custom_powerup_id, opt_ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
-        ["update_callback"] = update_func,
-        ["pickup_callback"] = pickup_func,
-        ["custom_powerup_id"] = custom_powerup_id,
-        ["carry_type"] = CARRY_TYPE.HELD,
-        ["ent_type"] = opt_ent_type,
-        ["entities"] = {}
+        update_callback = update_func,
+        pickup_callback = pickup_func,
+        custom_powerup_id = custom_powerup_id,
+        carry_type = CARRY_TYPE.HELD,
+        ent_type = opt_ent_type,
+        entities = {}
     }
     custom_types[custom_id].set = function(ent, c_data)
         messpect("set")
@@ -943,10 +945,10 @@ end
 function module.new_custom_purchasable_pickup(set_func, update_func, toreplace_custom_id)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
-        ["update_callback"] = update_func,
-        ["carry_type"] = CARRY_TYPE.HELD,
-        ["ent_type"] = ENT_TYPE.ITEM_ROCK,
-        ["entities"] = {}
+        update_callback = update_func,
+        carry_type = CARRY_TYPE.HELD,
+        ent_type = ENT_TYPE.ITEM_ROCK,
+        entities = {}
     }
     custom_types[custom_id].set = function(ent, c_data)
         messpect("set")
@@ -1014,6 +1016,16 @@ local function set_custom_item_spawn_random(shop_type, x, y, l)
     end
 end
 
+local function set_custom_random_item_roomtype(roomtype, x, y, l)
+    if has(normal_shop_rooms, roomtype) then
+        return set_custom_item_spawn_random(custom_types_shop[state.level_gen.shop_type], x, y, l)
+    elseif roomtype == ROOM_TEMPLATE.CURIOSHOP or roomtype == ROOM_TEMPLATE.CURIOSHOP_LEFT then
+        return set_custom_item_spawn_random(custom_types_tun_shop, x, y, l)
+    elseif roomtype == ROOM_TEMPLATE.CAVEMANSHOP or roomtype == ROOM_TEMPLATE.CAVEMANSHOP_LEFT then
+        return set_custom_item_spawn_random(custom_types_caveman_shop, x, y, l)
+    end
+end
+
 local function set_custom_shop_spawns() --TODO: do something for purchsasable backpacks when shopkeeper angry
     set_pre_entity_spawn(function(type, x, y, l, overlay)
         if (type == ENT_TYPE.ITEM_SHOTGUN or type == ENT_TYPE.ITEM_CROSSBOW) and y%1 > 0.04 and y%1 < 0.040001 then --when is a shotgun held by shopkeeper cause they're patrolling
@@ -1022,15 +1034,21 @@ local function set_custom_shop_spawns() --TODO: do something for purchsasable ba
         local rx, ry = get_room_index(x, y)
         local roomtype = get_room_template(rx, ry, l)
         if not overlay then --TODO: check if this is necessary? (if not overlay)
-            if has(normal_shop_rooms, roomtype) then
-                return set_custom_item_spawn_random(custom_types_shop[state.level_gen.shop_type], x, y, l)
-            elseif roomtype == ROOM_TEMPLATE.CURIOSHOP or roomtype == ROOM_TEMPLATE.CURIOSHOP_LEFT then
-                return set_custom_item_spawn_random(custom_types_tun_shop, x, y, l)
-            elseif roomtype == ROOM_TEMPLATE.CAVEMANSHOP or roomtype == ROOM_TEMPLATE.CAVEMANSHOP_LEFT then
-                return set_custom_item_spawn_random(custom_types_caveman_shop, x, y, l)
-            end
+            return set_custom_random_item_roomtype(roomtype, x, y, l)
         end
     end, SPAWN_TYPE.LEVEL_GEN, MASK.ITEM, all_shop_ents)
+    set_pre_entity_spawn(function(type, x, y, l, overlay)
+        messpect("diceshop item", x, y, l) --TODO: check position or if close to PrizeDispenser
+        local rx, ry = get_room_index(x, y)
+        local roomtype = get_room_template(rx, ry, l)
+        if x % 1 == 0 and get_entities_at(ENT_TYPE.ITEM_DICE_PRIZE_DISPENSER, MASK.ANY, x, y, LAYER.FRONT, 0.01)[1] then
+            if roomtype == ROOM_TEMPLATE.DICESHOP or roomtype == ROOM_TEMPLATE.DICESHOP_LEFT then
+                return set_custom_item_spawn_random(custom_types_diceshop, x, y, l)
+            elseif roomtype == ROOM_TEMPLATE.TUSKDICESHOP or roomtype == ROOM_TEMPLATE.TUSKDICESHOP_LEFT then
+                return set_custom_item_spawn_random(custom_types_tuskdiceshop, x, y, l)
+            end
+        end
+    end, SPAWN_TYPE.SYSTEMIC, MASK.ITEM, DICESHOP_ITEMS)
     custom_shop_items_set = true
 end
 
@@ -1041,6 +1059,10 @@ local function add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
         table.insert(custom_types_tun_shop[chance_type], custom_ent_id)
     elseif shop_type == SHOP_ROOM_TYPES.CAVEMAN then
         table.insert(custom_types_caveman_shop[chance_type], custom_ent_id)
+    elseif shop_type == SHOP_ROOM_TYPES.DICESHOP then
+        table.insert(custom_types_diceshop[chance_type], custom_ent_id)
+    elseif shop_type == SHOP_ROOM_TYPES.TUSKDICESHOP then
+        table.insert(custom_types_tuskdiceshop[chance_type], custom_ent_id)
     end
 end
 
@@ -1058,8 +1080,8 @@ function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types)
 end
 
 local toreplace_crate_content = {
-    ["custom_type_id"] = nil,
-    ["entity_type"] = nil
+    custom_type_id = nil,
+    entity_type = nil
 }
 local function set_custom_container_spawns()
     set_post_entity_spawn(function(crate)
