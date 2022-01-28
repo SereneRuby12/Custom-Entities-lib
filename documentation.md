@@ -10,7 +10,7 @@ inits lib callbacks, if the bool is true then the update callbacks will be calle
 
 ### :white_check_mark: void stop()
 
-stops lib callbacks
+stops lib callbacks, currently doesn't stop all the callbacks, anyways, you probably won't use this.
 
 ### :white_check_mark: int id new_custom_entity(function(entity, transition_data, args) set_func, function(entity, custom_ent_info) updatefunc, optional<CARRY_TYPE> carry_type, optional\<int\> ent_type) 
 
@@ -18,7 +18,7 @@ Set a new custom entity behiavour to be asigned in set_custom_entity()
 
 The function should take care of items being taken to next levels, waddler, etc.
 
-**The set function must return a table** for storing info about the entity, that will be passed to the updatefunc and set_func if the entity can go through levels (items, mounts)
+**The set function must return a table** for storing info about the entity, that will be passed to the updatefunc (custom_ent_info), and set_func (transition_data) if the entity can go through levels (items, mounts) or is cloned.
 
 For carry_type, use CARRY_TYPE.HELD or .MOUNT
 
@@ -63,6 +63,9 @@ add chance to be incrusted in a block
 ### :white_check_mark: void set_price(entity, base_price, inflation)
 
 Sets the price of an entity for the level. Use this only in the set function for custom entities, this solves an error that shows when setting the price on the first frame.
+
+### :white_check_mark: void add_after_destroy_callback(custom_ent_id, function() callback)
+Set a function to be called after the entity stops existing. Only one function per custom entity.
 
 ### **CHANCE**
 - `COMMON` "common"
