@@ -4,9 +4,11 @@ Make custom entities easy to implement: items, weapons, pickups, monster etc.
 
 # Functions (the ones in red arent made yet):
 
-### :white_check_mark: void init(bool gameframe) 
+### :white_check_mark: void init(bool gameframe, bool disable_custom_entities_cloning) 
 
 inits lib callbacks, if the bool is true then the update callbacks will be called on ON.GAMEFRAME instead of ON.FRAME
+
+The disable_custom_entities_cloning disables the need of keeping track of clonegunshot, but obviously, custom entities won't be cloned correctly.
 
 ### :white_check_mark: void stop()
 
@@ -64,7 +66,7 @@ add chance to be incrusted in a block
 
 Sets the price of an entity for the level. Use this only in the set function for custom entities, this solves an error that shows when setting the price on the first frame.
 
-### :white_check_mark: void add_after_destroy_callback(custom_ent_id, function() callback)
+### :white_check_mark: void add_after_destroy_callback(custom_ent_id, function(custom_ent_info) callback)
 Set a function to be called after the entity stops existing. Only one function per custom entity.
 
 ### **CHANCE**
