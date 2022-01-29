@@ -4,13 +4,15 @@ Make custom entities easy to implement: items, weapons, pickups, monster etc.
 
 # Functions (the ones in red arent made yet):
 
-### :white_check_mark: void init(bool gameframe) 
+### :white_check_mark: void init(bool gameframe, bool disable_custom_entities_cloning) 
 
 inits lib callbacks, if the bool is true then the update callbacks will be called on ON.GAMEFRAME instead of ON.FRAME
 
+The disable_custom_entities_cloning disables the need of keeping track of clonegunshot, but obviously, custom entities won't be cloned correctly.
+
 ### :white_check_mark: void stop()
 
-stops lib callbacks
+stops lib callbacks, currently doesn't stop all the callbacks, anyways, you probably won't use this.
 
 ### :white_check_mark: int id new_custom_entity(function(entity, transition_data, args) set_func, function(entity, custom_ent_info) updatefunc, optional<CARRY_TYPE> carry_type, optional\<int\> ent_type) 
 
@@ -18,7 +20,7 @@ Set a new custom entity behiavour to be asigned in set_custom_entity()
 
 The function should take care of items being taken to next levels, waddler, etc.
 
-**The set function must return a table** for storing info about the entity, that will be passed to the updatefunc and set_func if the entity can go through levels (items, mounts)
+**The set function must return a table** for storing info about the entity, that will be passed to the updatefunc (custom_ent_info), and set_func (transition_data) if the entity can go through levels (items, mounts) or is cloned.
 
 For carry_type, use CARRY_TYPE.HELD or .MOUNT
 
@@ -64,6 +66,9 @@ add chance to be incrusted in a block
 
 Sets the price of an entity for the level. Use this only in the set function for custom entities, this solves an error that shows when setting the price on the first frame.
 
+### :white_check_mark: void add_after_destroy_callback(custom_ent_id, function(custom_ent_info) callback)
+Set a function to be called after the entity stops existing. Only one function per custom entity.
+
 ### **CHANCE**
 - `COMMON` "common"
 - `LOW` "low"
@@ -76,14 +81,16 @@ Sets the price of an entity for the level. Use this only in the set function for
 - `SPECIALTY_SHOP` 3
 - `HIRED_HAND_SHOP` 4
 - `PET_SHOP` 5
-- `DICE_SHOP` 6
-- `TUSK_DICE_SHOP` 13
-- `TUN` 77
-- `CAVEMAN` 79
+- `DICESHOP` 75 (ROOM_TEMPLATE.DICESHOP)
+- `TUSKDICESHOP` 83 (ROOM_TEMPLATE.TUSKDICESHOP)
+- `TUN` 77 (ROOM_TEMPLATE.CURIOSHOP)
+- `CAVEMAN` 79 (ROOM_TEMPLATE.CAVEMANSHOP)
 
 ### **CARRY_TYPE**
 - `HELD` 1 (items and backpacks)
 - `MOUNT` 2
+- `BACK` 3 (used only in the lib, for backitems use HELD)
+- `POWERUP` 4
 ### ALL_SHOPS
 
 A table containing all the shop types
@@ -143,7 +150,7 @@ Spawn a FX_PICKUPEFFECT on player_uid, and set its texture and animation_frame. 
 I couldn't make the normal pickup to be purchasable without it giving the base pickup, so this spawns an entity that acts like a pickup, and manually handles buying it.
 
 ## Some examples
-- [Random custom entities](examples/example.lua)
+- [Some random custom entities](examples/example.lua)
 - [Custom gun](examples/Grapple_gun/grapple_gun.lua)
 - [Custom gun2](examples/lil_bomber_item_example/lil_bomber_custom_gun2.lua)
 - [Custom backpack](examples/ParachutePack.lua)
