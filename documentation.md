@@ -1,7 +1,3 @@
-# Idea:
-
-Make custom entities easy to implement: items, weapons, pickups, monster etc.
-
 # Functions (the ones in red arent made yet):
 
 ### :white_check_mark: void init(bool gameframe, bool disable_custom_entities_cloning)
@@ -72,9 +68,9 @@ Sets the price of an entity for the level. Use this only in the set function for
 Set a function to be called after the entity stops existing. Only one function per custom entity.
 
 ### **CHANCE**
-- `COMMON` "common"
-- `LOW` "low"
-- `LOWER` lower"
+- `COMMON` "common" 30%
+- `LOW` "low" 15%
+- `LOWER` lower" 5%
 
 ### **SHOP_TYPE** 
 - `GENERAL_STORE` 0
@@ -118,7 +114,7 @@ It can be used by any entity capable of using weapons (Including shopkeepers, hi
 
 Using a shotgun will generate 6 bullets, calling the bulletfunc 6 times and aplying the recoil 6 times, so be careful if you apply an extra recoil to shotguns.
 
-### int id new_custom_backpack(function(entity, transition_data) set_func, function(entity, custom_ent_info, holder) updatefunc, bool flammable)
+### :white_check_mark: int id new_custom_backpack(function(entity, transition_data) set_func, function(entity, custom_ent_info, holder) updatefunc, bool flammable)
 
 Uses jetpack as base entity, sets the fuel to 0.
 
@@ -126,9 +122,7 @@ The holder is nil if it isn't being carried on the back of a player.
 
 ### :white_check_mark: int id new_custom_purchasable_back(function(entity) set_func, function(entity, custom_ent_info) updatefunc, int toreplace_custom_id, bool flammable)
 
-(WIP) Spawns a rock, and changes some of the properties to make it look like a backpack, spawns the toreplace entity when the item isn't a shop item anymore (bought, shopkeeper angered, etc.)
-
-Flammable backpacks work, but shopkeepers don't shoot when is touched by magmaman.
+Spawns a rock, and changes some of the properties to make it look like a backpack, spawns the toreplace entity when the item isn't a shop item anymore (bought, shopkeeper angered, etc.)
 
 The custom item that will replace it must have a ent_type assinged (custom backpacks have ITEM_JETPACK by default).
 
