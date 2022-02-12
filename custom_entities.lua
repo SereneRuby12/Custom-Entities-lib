@@ -85,7 +85,6 @@ local shop_items = {ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_BOMBBAG,
 local shop_guns = {ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CROSSBOW}
 local all_shop_ents = join(shop_items, shop_guns)
 local normal_shop_rooms = {ROOM_TEMPLATE.SHOP, ROOM_TEMPLATE.SHOP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_UP, ROOM_TEMPLATE.SHOP_ENTRANCE_UP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN_LEFT}
-local DICESHOP_ROOMS = {ROOM_TEMPLATE.DICESHOP, ROOM_TEMPLATE.DICESHOP_LEFT, ROOM_TEMPLATE.TUSKDICESHOP, ROOM_TEMPLATE.TUSKDICESHOP_LEFT}
 local DICESHOP_ITEMS = {ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CROSSBOW, ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK}
 
 local function new_chances()
@@ -297,7 +296,7 @@ end, 'storage_floor')
 local function get_types(entity_uids)
     local ret = {}
     for _, uid in ipairs(entity_uids) do
-        if not test_flag(get_entity_flags(uid), 32) then --flags 32 is a bit complicated, but is always enabled when the entity is held by something
+        if not test_flag(get_entity_flags(uid), 32) then -- is always enabled when the entity is held by something
             local _type = get_entity_type(uid)
             ret[_type] = uid
         end
@@ -307,7 +306,7 @@ end
 local CLONEABLE_MASK = MASK.PLAYER | MASK.MOUNT | MASK.MONSTER | MASK.ITEM
 
 local function set_clonegunshot_custom_ent()
-    local clonegunshot_custom_id = module.new_custom_entity(function(entity)
+    local _clonegunshot_custom_id = module.new_custom_entity(function(entity)
         local hitbox = get_hitbox(entity.uid)
         return {
             last_overlapping = get_entities_overlapping_hitbox(0, CLONEABLE_MASK, hitbox, entity.layer)
@@ -317,24 +316,29 @@ local function set_clonegunshot_custom_ent()
         c_data.last_overlapping = get_entities_overlapping_hitbox(0, CLONEABLE_MASK, hitbox, entity.layer)
     end, nil, ENT_TYPE.ITEM_CLONEGUNSHOT)
 
-    module.add_after_destroy_callback(clonegunshot_custom_id, function(c_data)
+    module.add_after_destroy_callback(_clonegunshot_custom_id, function(c_data)
         local overlapping_types = get_types(c_data.last_overlapping)
         for _, uid in ipairs(get_entities_by_type(ENT_TYPE.FX_TELEPORTSHADOW)) do
             if get_entity_type(uid+1) ~= ENT_TYPE.FX_TELEPORTSHADOW then
                 local spawned_uid = uid-1
+                local spawned_ent = get_entity(spawned_uid)
+                if spawned_ent.overlay and spawned_ent.overlay.uid == spawned_uid - 1 then --for jetpacks that spawn a FX_JETPACKFLAME and maybe other ents
+                    spawned_uid = spawned_uid -1
+                    spawned_ent = get_entity(spawned_uid)
+                end
                 local _type = get_entity_type(spawned_uid)
                 local cloned_uid = overlapping_types[_type]
                 if cloned_uid then
                     for id, c_type in ipairs(custom_types) do
                         if c_type.entities[cloned_uid] then
-                            set_custom_entity(spawned_uid, get_entity(spawned_uid), id, module.get_custom_entity(cloned_uid, id))
+                            set_custom_entity(spawned_uid, spawned_ent, id, module.get_custom_entity(cloned_uid, id))
                         end
                     end
                 end
             end
         end
     end)
-    return clonegunshot_custom_id
+    return _clonegunshot_custom_id
 end
 
 function module.init(game_frame, not_handle_clonegun)
@@ -354,7 +358,7 @@ function module.init(game_frame, not_handle_clonegun)
         end
         cb_clonegunshot = set_post_entity_spawn(function(entity)
             module.set_custom_entity(entity.uid, clonegunshot_custom_id)
-        end, SPAWN_TYPE.SYSTEMIC, MASK.ANY, ENT_TYPE.ITEM_CLONEGUNSHOT)
+        end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.ITEM_CLONEGUNSHOT)
     end
 
     cb_loading = set_callback(function()
