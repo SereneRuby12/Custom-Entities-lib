@@ -73,6 +73,14 @@ local function join(a, b)
     return result
 end
 
+local function clone_chances(tabl)
+    return {
+        common = {table.unpack(tabl.common)},
+        low = {table.unpack(tabl.low)},
+        lower = {table.unpack(tabl.lower)}
+    }
+end
+
 local shop_items = {ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_SKELETON_KEY, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_METAL_SHIELD, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_PICKUP_HEDJET, ENT_TYPE.ITEM_PICKUP_ROYALJELLY, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_WOODEN_ARROW, ENT_TYPE.ITEM_PICKUP_COOKEDTURKEY}
 local shop_guns = {ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CROSSBOW}
 local all_shop_ents = join(shop_items, shop_guns)
@@ -93,6 +101,8 @@ local custom_types_caveman_shop = new_chances()
 local custom_types_diceshop = new_chances()
 local custom_types_tuskdiceshop = new_chances()
 local custom_shop_items_set = false --if the set_pre_entity_spawn for custom shop items was already set
+
+local shops_by_room_pos = {}
 
 local custom_types_container = {
     [ENT_TYPE.ITEM_CRATE] = new_chances(),
@@ -349,56 +359,62 @@ function module.init(game_frame, not_handle_clonegun)
 
     cb_loading = set_callback(function()
         local is_storage_floor_there = #get_entities_by_type(ENT_TYPE.FLOOR_STORAGE) > 0
-        if state.loading == 2 and ((state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP) or state.screen_next == SCREEN.SPACESHIP) then
-            for c_id,c_type in ipairs(custom_types) do
-                for uid, c_data in pairs(c_type.entities) do
-                    if c_type.carry_type == CARRY_TYPE.HELD then
-                        local ent = get_entity(uid)
-                        local holder
-                        if not ent or ent.state == 24 or ent.last_state == 24 then
-                            holder = c_data.last_holder
-                        else
-                            holder = ent.overlay
-                        end
-                        if holder and holder.type.search_flags & MASK.PLAYER == MASK.PLAYER then
-                            if holder:worn_backitem() == uid then
-                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.BACK)
-                            elseif holder.inventory.player_slot == -1 then
-                                set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
+        if ((state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP) or state.screen_next == SCREEN.SPACESHIP) then
+            if state.loading == 2 then
+                for c_id,c_type in ipairs(custom_types) do
+                    for uid, c_data in pairs(c_type.entities) do
+                        if c_type.carry_type == CARRY_TYPE.HELD then
+                            local ent = get_entity(uid)
+                            local holder
+                            if not ent or ent.state == 24 or ent.last_state == 24 then
+                                holder = c_data.last_holder
                             else
-                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
+                                holder = ent.overlay
                             end
-                        elseif ent and is_storage_floor_there and ent.standing_on_uid and get_entity(ent.standing_on_uid).type.id == ENT_TYPE.FLOOR_STORAGE then
-                            set_transition_info_storage(c_id, c_data, ent.type.id)
-                        end
-                    elseif c_type.carry_type == CARRY_TYPE.MOUNT then
-                        local ent = get_entity(uid)
-                        local holder, rider_uid
-                        if not ent or ent.state == 24 or ent.last_state == 24 then
-                            holder = c_data.last_holder
-                            rider_uid = c_data.last_rider_uid
-                        else
-                            holder = ent.overlay
-                            rider_uid = ent.rider_uid
-                        end
-                        if holder then
-                            if holder.inventory.player_slot == -1 then
-                                set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
+                            if holder and holder.type.search_flags & MASK.PLAYER == MASK.PLAYER then
+                                if holder:worn_backitem() == uid then
+                                    set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.BACK)
+                                elseif holder.inventory.player_slot == -1 then
+                                    set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
+                                else
+                                    set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
+                                end
+                            elseif ent and is_storage_floor_there and ent.standing_on_uid and get_entity(ent.standing_on_uid).type.id == ENT_TYPE.FLOOR_STORAGE then
+                                set_transition_info_storage(c_id, c_data, ent.type.id)
+                            end
+                        elseif c_type.carry_type == CARRY_TYPE.MOUNT then
+                            local ent = get_entity(uid)
+                            local holder, rider_uid
+                            if not ent or ent.state == 24 or ent.last_state == 24 then
+                                holder = c_data.last_holder
+                                rider_uid = c_data.last_rider_uid
                             else
-                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
+                                holder = ent.overlay
+                                rider_uid = ent.rider_uid
                             end
-                        elseif rider_uid and rider_uid ~= -1 then
-                            holder = get_entity(rider_uid)
-                            if holder and holder.type.search_flags == MASK.PLAYER then
-                                set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.MOUNT)
+                            if holder then
+                                if holder.inventory.player_slot == -1 then
+                                    set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
+                                else
+                                    set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
+                                end
+                            elseif rider_uid and rider_uid ~= -1 then
+                                holder = get_entity(rider_uid)
+                                if holder and holder.type.search_flags == MASK.PLAYER then
+                                    set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.MOUNT)
+                                end
                             end
-                        end
-                    elseif c_type.carry_type == CARRY_TYPE.POWERUP then
-                        local ent = get_entity(uid)
-                        if ent then
-                            set_transition_info(c_id, c_data, ent.inventory.player_slot, CARRY_TYPE.POWERUP)
+                        elseif c_type.carry_type == CARRY_TYPE.POWERUP then
+                            local ent = get_entity(uid)
+                            if ent then
+                                set_transition_info(c_id, c_data, ent.inventory.player_slot, CARRY_TYPE.POWERUP)
+                            end
                         end
                     end
+                end
+            elseif state.loading == 3 then
+                for _,c_type in ipairs(custom_types) do
+                    c_type.entities = {}
                 end
             end
             if custom_entities_t_info_cog_ankh[1] then
@@ -426,10 +442,11 @@ function module.init(game_frame, not_handle_clonegun)
     end, ON.POST_LEVEL_GENERATION)
 
     cb_post_room_gen = set_callback(function()
+        shops_by_room_pos = {}
         for _,c_type in ipairs(custom_types) do
             c_type.entities = {}
         end
-    end, ON.POST_ROOM_GENERATION)
+    end, ON.PRE_LEVEL_GENERATION)
 end
 
 function module.stop()
@@ -606,12 +623,16 @@ function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, rec
 end
 
 local function spawn_replacement(ent, custom_id)
+    local is_held_by_player = ent.overlay ~= nil and ent.overlay.type.search_flags == MASK.PLAYER
     local x, y, l = get_position(ent.uid)
-    local vx, vy = get_velocity(ent.uid)
+    local vx, vy = 0, 0
+    if not is_held_by_player then
+        vx, vy = get_velocity(ent.uid)
+    end
     local replacement_uid = spawn(custom_types[custom_id].ent_type, x, y, l, vx, vy)
     local replacement = get_entity(replacement_uid)
     module.set_custom_entity(replacement_uid, custom_id)
-    if ent.overlay and ent.overlay.type.search_flags == MASK.PLAYER then
+    if is_held_by_player then
         ent.overlay:pick_up(replacement)
     end
     ent:destroy()
@@ -1031,15 +1052,20 @@ function module.get_custom_entity(ent_uid, custom_ent_id)
 end
 
 local function get_custom_item(custom_types_table)
-    if #custom_types_table == 0 then
+    if not custom_types_table[1] then
         return
     end
-    local custom_type_id = custom_types_table[prng:random_index(#custom_types_table, PRNG_CLASS.LEVEL_DECO)]
+    local index = prng:random_index(#custom_types_table, PRNG_CLASS.EXTRA_SPAWNS)
+    local custom_type_id = custom_types_table[index]
+    if custom_types[custom_type_id].max_one then
+        custom_types_table[index] = custom_types_table[#custom_types_table]
+        custom_types_table[#custom_types_table] = nil
+    end
     return custom_type_id, custom_types[custom_type_id].ent_type
 end
 
 local function get_custom_item_from_chances(chances_table)
-    local chance = prng:random_float(PRNG_CLASS.LEVEL_DECO)
+    local chance = prng:random_float(PRNG_CLASS.EXTRA_SPAWNS)
     local custom_type_id, entity_type
     if chance < 0.3 then
         custom_type_id, entity_type = get_custom_item(chances_table.common)
@@ -1051,8 +1077,8 @@ local function get_custom_item_from_chances(chances_table)
     return custom_type_id, entity_type
 end
 
-local function set_custom_item_spawn_random(shop_type, x, y, l)
-    local custom_type_id, entity_type = get_custom_item_from_chances(shop_type)
+local function spawn_custom_item_random(shop_chances, x, y, l)
+    local custom_type_id, entity_type = get_custom_item_from_chances(shop_chances)
     if custom_type_id then
         local uid = spawn_entity_nonreplaceable(entity_type, x, y, l, 0, 0)
         module.set_custom_entity(uid, custom_type_id)
@@ -1060,33 +1086,74 @@ local function set_custom_item_spawn_random(shop_type, x, y, l)
     end
 end
 
-local function set_custom_random_item_roomtype(roomtype, x, y, l)
-    if has(normal_shop_rooms, roomtype) then
-        return set_custom_item_spawn_random(custom_types_shop[state.level_gen.shop_type], x, y, l)
-    elseif roomtype == ROOM_TEMPLATE.CURIOSHOP or roomtype == ROOM_TEMPLATE.CURIOSHOP_LEFT then
-        return set_custom_item_spawn_random(custom_types_tun_shop, x, y, l)
-    elseif roomtype == ROOM_TEMPLATE.CAVEMANSHOP or roomtype == ROOM_TEMPLATE.CAVEMANSHOP_LEFT then
-        return set_custom_item_spawn_random(custom_types_caveman_shop, x, y, l)
+local function add_shop_chances_by_pos(shop_chances, rx, ry, l)
+    if shops_by_room_pos[rx] then
+        if shops_by_room_pos[rx][ry] then
+            if shops_by_room_pos[rx][ry][l] then
+                messpect("BUG (shouldn't break anything): shop already exists")
+            else
+                shops_by_room_pos[rx][ry][l] = shop_chances
+            end
+        else
+            shops_by_room_pos[rx][ry] = {[l] = shop_chances}
+        end
+    else
+        shops_by_room_pos[rx] = {
+            [ry] = {[l] = shop_chances}
+        }
     end
 end
 
+local function spawn_custom_random_item_roomtype(roomtype, rx, ry, x, y, l)
+    local shop_chances
+    if has(normal_shop_rooms, roomtype) then
+        shop_chances = clone_chances(custom_types_shop[state.level_gen.shop_type])
+        add_shop_chances_by_pos(shop_chances, rx, ry, l)
+    elseif roomtype == ROOM_TEMPLATE.CURIOSHOP or roomtype == ROOM_TEMPLATE.CURIOSHOP_LEFT then
+        shop_chances = clone_chances(custom_types_tun_shop)
+        add_shop_chances_by_pos(shop_chances, rx, ry, l)
+    elseif roomtype == ROOM_TEMPLATE.CAVEMANSHOP or roomtype == ROOM_TEMPLATE.CAVEMANSHOP_LEFT then
+        shop_chances = clone_chances(custom_types_caveman_shop)
+        add_shop_chances_by_pos(shop_chances, rx, ry, l)
+    else
+        return nil
+    end
+    return spawn_custom_item_random(shop_chances, x, y, l)
+end
+
 local function set_custom_shop_spawns()
-    set_pre_entity_spawn(function(type, x, y, l, overlay)
+    set_pre_entity_spawn(function(type, x, y, l, _)
         if (type == ENT_TYPE.ITEM_SHOTGUN or type == ENT_TYPE.ITEM_CROSSBOW) and y%1 > 0.04 and y%1 < 0.040001 then --when is a shotgun held by shopkeeper cause they're patrolling
             return
         end
         local rx, ry = get_room_index(x, y)
-        local roomtype = get_room_template(rx, ry, l)
-        return set_custom_random_item_roomtype(roomtype, x, y, l)
+        if shops_by_room_pos[rx] and shops_by_room_pos[rx][ry] and shops_by_room_pos[rx][ry][l] then
+            return spawn_custom_item_random(shops_by_room_pos[rx][ry][l], x, y, l)
+        else
+            local roomtype = get_room_template(rx, ry, l)
+            return spawn_custom_random_item_roomtype(roomtype, rx, ry, x, y, l)
+        end
     end, SPAWN_TYPE.LEVEL_GEN, MASK.ANY, all_shop_ents)
-    set_pre_entity_spawn(function(type, x, y, l, overlay)
+    set_pre_entity_spawn(function(_, x, y, l, _)
         local rx, ry = get_room_index(x, y)
         local roomtype = get_room_template(rx, ry, l)
         if x % 1 == 0 and get_entities_at(ENT_TYPE.ITEM_DICE_PRIZE_DISPENSER, MASK.ANY, x, y, LAYER.FRONT, 0.01)[1] then
             if roomtype == ROOM_TEMPLATE.DICESHOP or roomtype == ROOM_TEMPLATE.DICESHOP_LEFT then
-                return set_custom_item_spawn_random(custom_types_diceshop, x, y, l)
+                if shops_by_room_pos[rx] and shops_by_room_pos[rx][ry] and shops_by_room_pos[rx][ry][l] then
+                    return spawn_custom_item_random(shops_by_room_pos[rx][ry][l], x, y, l)
+                else
+                    local shop_chances = clone_chances(custom_types_diceshop)
+                    add_shop_chances_by_pos(shop_chances, rx, ry, l)
+                    return spawn_custom_item_random(shop_chances, x, y, l)
+                end
             elseif roomtype == ROOM_TEMPLATE.TUSKDICESHOP or roomtype == ROOM_TEMPLATE.TUSKDICESHOP_LEFT then
-                return set_custom_item_spawn_random(custom_types_tuskdiceshop, x, y, l)
+                if shops_by_room_pos[rx] and shops_by_room_pos[rx][ry] and shops_by_room_pos[rx][ry][l] then
+                    return spawn_custom_item_random(shops_by_room_pos[rx][ry][l], x, y, l)
+                else
+                    local shop_chances = clone_chances(custom_types_tuskdiceshop)
+                    add_shop_chances_by_pos(shop_chances, rx, ry, l)
+                    return spawn_custom_item_random(custom_types_tuskdiceshop, x, y, l)
+                end
             end
         end
     end, SPAWN_TYPE.SYSTEMIC, MASK.ANY, DICESHOP_ITEMS)
@@ -1107,10 +1174,11 @@ local function add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
     end
 end
 
-function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types)
+function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types, max_one) --max one per shop
     if not custom_shop_items_set then
         set_custom_shop_spawns()
     end
+    custom_types[custom_ent_id].max_one = max_one
     if type(shop_types) == "table" then
         for _, shop_type in ipairs(shop_types) do
             add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
@@ -1140,7 +1208,7 @@ local function set_custom_container_spawns()
 
     set_pre_entity_spawn(function(_, x, y, layer, _, _) --this is immediately called after the kill or open, will work even when opening many crates at the same time
         if toreplace_crate_content.custom_type_id then
-            local uid = spawn(toreplace_crate_content.entity_type, x, y, layer, prng:random_float(PRNG_CLASS.LEVEL_DECO)*0.2-0.1, 0.1)
+            local uid = spawn(toreplace_crate_content.entity_type, x, y, layer, prng:random_float(PRNG_CLASS.EXTRA_SPAWNS)*0.2-0.1, 0.1)
             module.set_custom_entity(uid, toreplace_crate_content.custom_type_id)
 
             toreplace_crate_content.custom_type_id = nil

@@ -76,7 +76,7 @@ local purchasable_pickup_id = celib.new_custom_purchasable_pickup(pickup_set_fun
 
 celib.add_custom_container_chance(pickup_id, celib.CHANCE.COMMON, celib.ALL_CONTAINERS)
 
-celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.COMMON, celib.ALL_SHOPS)
+celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.COMMON, celib.ALL_SHOPS, true)
 
 celib.init(true)
 

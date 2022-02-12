@@ -42,7 +42,7 @@ c_ent_lib.init(true)
 local rainbow_cape = c_ent_lib.new_custom_entity(rainbow_cape_set, rainbow_cape_update, c_ent_lib.CARRY_TYPE.HELD, ENT_TYPE.ITEM_CAPE)
 local rainbow_cape_p = c_ent_lib.new_custom_purchasable_back(rainbow_cape_set, rainbow_cape_update, rainbow_cape, false)
 
-c_ent_lib.add_custom_shop_chance(rainbow_cape_p, c_ent_lib.CHANCE.COMMON, c_ent_lib.ALL_SHOPS)
+c_ent_lib.add_custom_shop_chance(rainbow_cape_p, c_ent_lib.CHANCE.COMMON, c_ent_lib.ALL_SHOPS, true)
 
 set_callback(function()
     local x, y, l = get_position(players[1].uid)

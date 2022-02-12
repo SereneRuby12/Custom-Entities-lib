@@ -224,7 +224,7 @@ end
 
 local grapple_id = celib.new_custom_gun(grapple_gun_set, grapple_gun_update, grapple_gun_shoot, 4, 0.05, 0.025, ENT_TYPE.ITEM_CLONEGUN)
 
-celib.add_custom_shop_chance(grapple_id, celib.CHANCE.COMMON, {celib.SHOP_TYPE.SPECIALTY_SHOP, celib.SHOP_TYPE.TUN, celib.SHOP_TYPE.CAVEMAN})
+celib.add_custom_shop_chance(grapple_id, celib.CHANCE.COMMON, {celib.SHOP_TYPE.SPECIALTY_SHOP, celib.SHOP_TYPE.TUN, celib.SHOP_TYPE.CAVEMAN}, true)
 celib.add_custom_container_chance(grapple_id, celib.CHANCE.COMMON, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT})
 
 celib.init(true)
