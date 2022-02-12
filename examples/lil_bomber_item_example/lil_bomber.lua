@@ -32,7 +32,7 @@ end
 
 local c_gun = c_ent_lib.new_custom_gun(mycustom_set, mycustom_update, mycustom_shoot, 60, 0.2, 0.05, ENT_TYPE.ITEM_FREEZERAY)
 c_ent_lib.init()
-c_ent_lib.add_custom_shop_chance(c_gun, c_ent_lib.CHANCE.LOW, c_ent_lib.SHOP_TYPE.WEAPON_SHOP)
+c_ent_lib.add_custom_shop_chance(c_gun, c_ent_lib.CHANCE.LOW, {c_ent_lib.SHOP_TYPE.WEAPON_SHOP, c_ent_lib.SHOP_TYPE.SPECIALTY_SHOP, c_ent_lib.SHOP_TYPE.TUN, c_ent_lib.SHOP_TYPE.CAVEMAN}, true)
 c_ent_lib.add_custom_container_chance(c_gun, c_ent_lib.CHANCE.LOW, ENT_TYPE.ITEM_CRATE)
 messpect(c_gun)
 

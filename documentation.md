@@ -4,7 +4,7 @@ Make custom entities easy to implement: items, weapons, pickups, monster etc.
 
 # Functions (the ones in red arent made yet):
 
-### :white_check_mark: void init(bool gameframe, bool disable_custom_entities_cloning) 
+### :white_check_mark: void init(bool gameframe, bool disable_custom_entities_cloning)
 
 inits lib callbacks, if the bool is true then the update callbacks will be called on ON.GAMEFRAME instead of ON.FRAME
 
@@ -14,7 +14,7 @@ The disable_custom_entities_cloning disables the need of keeping track of cloneg
 
 stops lib callbacks, currently doesn't stop all the callbacks, anyways, you probably won't use this.
 
-### :white_check_mark: int id new_custom_entity(function(entity, transition_data, args) set_func, function(entity, custom_ent_info) updatefunc, optional<CARRY_TYPE> carry_type, optional\<int\> ent_type) 
+### :white_check_mark: int id new_custom_entity(function(entity, transition_data, args) set_func, function(entity, custom_ent_info) updatefunc, optional\<CARRY_TYPE\> carry_type, optional\<int\> ent_type)
 
 Set a new custom entity behiavour to be asigned in set_custom_entity()
 
@@ -46,13 +46,15 @@ The `container_type` can be a a single value or a table of the entity types, use
 
 (requires ent_type on custom_ent to be set)
 
-### :white_check_mark: void add_custom_shop_chance(custom_ent_id, chance_type, shop_type/s)
+### :white_check_mark: void add_custom_shop_chance(custom_ent_id, chance_type, shop_type/s, optional\<only_one\>)
 
 Add chance to be in a shop or shops, use `SHOP_TYPE` (that uses SHOP_TYPE and ROOM_TEMPLATE from the scripting api) and `CHANCE` from the library
 
 The `shop_type` can be a a single value or a table of the shop types
 
 Only replaces items, not hh or mounts.
+
+`only_one` is for only allowing one item of that type to be on a shop
 
 (requires ent_type on custom_ent to be set)
 
@@ -91,6 +93,7 @@ Set a function to be called after the entity stops existing. Only one function p
 - `MOUNT` 2
 - `BACK` 3 (used only in the lib, for backitems use HELD)
 - `POWERUP` 4
+- Use nil if the entity isn't carried through levels
 ### ALL_SHOPS
 
 A table containing all the shop types

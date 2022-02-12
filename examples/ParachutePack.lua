@@ -46,7 +46,7 @@ local parachute_back = c_ent_lib.new_custom_backpack(parachute_back_set, parachu
 local parachute_back_p = c_ent_lib.new_custom_purchasable_back(parachute_back_p_set, function() end, parachute_back, false)
 c_ent_lib.init(true)
 
-c_ent_lib.add_custom_shop_chance(parachute_back_p, c_ent_lib.CHANCE.COMMON, c_ent_lib.ALL_SHOPS)
+c_ent_lib.add_custom_shop_chance(parachute_back_p, c_ent_lib.CHANCE.COMMON, c_ent_lib.ALL_SHOPS, true)
 c_ent_lib.add_custom_container_chance(parachute_back, c_ent_lib.CHANCE.LOW, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT})
 
 set_callback(function()

@@ -196,7 +196,7 @@ ghost_id = celib.new_custom_entity(chained_ghost_set, chained_ghost_update, nil)
 
 celib.add_custom_container_chance(pickup_id, celib.CHANCE.COMMON, ENT_TYPE.ITEM_GHIST_PRESENT)
 
-celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.LOW, {celib.SHOP_TYPE.CAVEMAN, celib.SHOP_TYPE.TUN}) --celib.CHANCE.COMMON, celib.ALL_SHOPS
+celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.LOW, {celib.SHOP_TYPE.CAVEMAN, celib.SHOP_TYPE.TUN}, true) --celib.CHANCE.COMMON, celib.ALL_SHOPS
 
 set_callback(function()
     local x, y, l = get_position(players[1].uid)
