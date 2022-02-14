@@ -1,5 +1,5 @@
 meta = {
-    name = "Custom Entities Library",
+    name = "Custom-Entities-Library",
     version = "0.9",
     author = "Estebanfer",
     description = "A library for creating custom entities"
@@ -438,7 +438,7 @@ function module.init(game_frame, not_handle_clonegun)
             end
             if custom_entities_t_info_cog_ankh[1] then
                 for _, info in ipairs(custom_entities_t_info_cog_ankh) do
-                    set_transition_info(info.custom_type_id, info.c_data, info.player_slot, CARRY_TYPE.POWERUP)
+                    set_transition_info(info.custom_type_id, info.data, info.slot, CARRY_TYPE.POWERUP)
                 end
             end
             custom_entities_t_info_cog_ankh = {}
@@ -505,13 +505,13 @@ local function update_custom_ent(ent, c_data, c_type, _)
     c_type.update_callback(ent, c_data)
 end
 
-function module.new_custom_entity(set_func, update_func, carry_type, opt_ent_type)
+function module.new_custom_entity(set_func, update_func, carry_type, ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
         set = set_func,
         update_callback = update_func,
         carry_type = carry_type,
-        ent_type = opt_ent_type,
+        ent_type = ent_type,
         entities = {}
     }
 
@@ -525,13 +525,13 @@ function module.new_custom_entity(set_func, update_func, carry_type, opt_ent_typ
     return custom_id
 end
 
-function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil_x, recoil_y, opt_ent_type)
+function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil_x, recoil_y, ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
         set = set_func,
         update_callback = update_func,
         carry_type = CARRY_TYPE.HELD,
-        ent_type = opt_ent_type,
+        ent_type = ent_type,
         shoot = firefunc,
         cooldown = cooldown,
         recoil_x = recoil_x,
@@ -931,8 +931,8 @@ function module.new_custom_powerup(set_func, update_func, texture_id, row, colum
             if state.theme == THEME.CITY_OF_GOLD and ent.idle_counter == 19 and ent.standing_on_uid ~= -1 and ent:standing_on().type.id == ENT_TYPE.FLOOR_ALTAR and ent:has_powerup(ENT_TYPE.ITEM_POWERUP_ANKH) and ent.stun_timer > 0 then
                 custom_entities_t_info_cog_ankh[#custom_entities_t_info_cog_ankh+1] = {
                     custom_type_id = c_type_id,
-                    c_data = c_data,
-                    player_slot = ent.inventory.player_slot
+                    data = c_data,
+                    slot = ent.inventory.player_slot
                 }
                 c_type.entities[ent.uid] = nil
             end
@@ -945,14 +945,14 @@ function module.set_powerup_drop(custom_powerup_id, custom_pickup_id)
     custom_types[custom_powerup_id].custom_pickup_id = custom_pickup_id
 end
 
-function module.new_custom_pickup(set_func, update_func, pickup_func, custom_powerup_id, opt_ent_type)
+function module.new_custom_pickup(set_func, update_func, pickup_func, custom_powerup_id, ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
         update_callback = update_func,
         pickup_callback = pickup_func,
         custom_powerup_id = custom_powerup_id,
         carry_type = CARRY_TYPE.HELD,
-        ent_type = opt_ent_type,
+        ent_type = ent_type,
         entities = {}
     }
     custom_types[custom_id].set = function(ent, c_data)
@@ -1255,7 +1255,11 @@ end
 
 module.custom_types = custom_types
 module.SHOP_TYPE = SHOP_ROOM_TYPES
-module.CARRY_TYPE = CARRY_TYPE
+module.CARRY_TYPE = {
+    HELD = 1,
+    MOUNT = 2,
+    POWERUP = 4
+}
 
 --register_console_command('get_custom_types', function() return custom_types end)
 

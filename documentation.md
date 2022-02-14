@@ -87,7 +87,6 @@ Set a function to be called after the entity stops existing. Only one function p
 ### **CARRY_TYPE**
 - `HELD` 1 (items and backpacks)
 - `MOUNT` 2
-- `BACK` 3 (used only in the lib, for backitems use HELD)
 - `POWERUP` 4
 - Use nil if the entity isn't carried through levels
 ### ALL_SHOPS
