@@ -45,9 +45,36 @@ local custom_types = {}
 
 local cb_update, cb_loading, cb_transition, cb_post_room_gen, cb_post_level_gen, cb_clonegunshot = -1, -1, -1, -1, -1, -1
 
+---@class TransitionInfo
+---@field custom_type_id integer
+---@field data table
+
+
+---@class PlayerTransitionInfo : TransitionInfo
+---@field slot integer
+---@field carry_type integer
+
+---@type PlayerTransitionInfo[]
 local custom_entities_t_info = {} --transition info
+
+
+---@class HHTransitionInfo : TransitionInfo
+---@field e_type integer
+---@field hh_num integer
+---@field leader_player_slot integer
+
+---@type HHTransitionInfo[]
 local custom_entities_t_info_hh = {}
+
+---@type TransitionInfo[]
 local custom_entities_t_info_storage = {}
+
+
+---@class COG_DuatTransitionInfo : TransitionInfo
+---@field slot integer
+
+---For transition of powerups
+---@type COG_DuatTransitionInfo[]
 local custom_entities_t_info_cog_ankh = {}
 local storage_pos = nil
 
@@ -355,6 +382,9 @@ local function set_clonegunshot_custom_ent()
     return _clonegunshot_custom_id
 end
 
+---init the lib callbacks
+---@param game_frame boolean @Run on GAMEFRAME if `true`
+---@param not_handle_clonegun boolean @disable handling cloning of custom entities
 function module.init(game_frame, not_handle_clonegun)
     if (game_frame) then
         cb_update = set_callback(function()
@@ -468,6 +498,7 @@ function module.init(game_frame, not_handle_clonegun)
     end, ON.PRE_LEVEL_GENERATION)
 end
 
+---Stop the library callbacks (not the extras callbacks)
 function module.stop()
     clear_callback(cb_update)
     clear_callback(cb_loading)
@@ -505,6 +536,15 @@ local function update_custom_ent(ent, c_data, c_type, _)
     c_type.update_callback(ent, c_data)
 end
 
+---@alias EntSet fun(ent: userdata, data: table, extra_args: any):table
+---@alias EntUpdate fun(ent: userdata, c_data: table):nil
+
+---Create a new custom entity type
+---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
+---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
+---@param carry_type integer | nil @Use `CARRY_TYPE`
+---@param ent_type integer | nil
+---@return integer
 function module.new_custom_entity(set_func, update_func, carry_type, ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
@@ -525,6 +565,15 @@ function module.new_custom_entity(set_func, update_func, carry_type, ent_type)
     return custom_id
 end
 
+---Create a new custom entity type that is a gun
+---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
+---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
+---@param firefunc fun(ent:userdata, c_data:table):nil
+---@param cooldown integer @Cooldown, in frames
+---@param recoil_x number
+---@param recoil_y number
+---@param ent_type integer
+---@return integer
 function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil_x, recoil_y, ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
@@ -602,6 +651,16 @@ local function set_custom_bullet_callback(weapon_id)
     weapon_info[weapon_id].callb_set = true
 end
 
+---Create a new custom entity type that is a gun, is called for each bullet, so be careful with recoil with shotgun
+---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
+---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
+---@param bulletfunc fun(gun_ent:userdata, c_data:table):nil @Called for each bullet on pre_entity_spawn
+---@param cooldown integer
+---@param recoil_x number
+---@param recoil_y number
+---@param ent_type integer
+---@param mute_sound boolean
+---@return integer
 function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, recoil_x, recoil_y, ent_type, mute_sound)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
@@ -662,6 +721,13 @@ local function spawn_replacement(ent, custom_id)
 end
 
 local back_warn_sound = get_sound(VANILLA_SOUND.ITEMS_BACKPACK_WARN)
+
+---Create a new custom entity type, use this for backpacks that spawn in shops
+---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
+---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
+---@param toreplace_custom_id integer
+---@param flammable boolean
+---@return integer
 function module.new_custom_purchasable_back(set_func, update_func, toreplace_custom_id, flammable)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
@@ -751,6 +817,11 @@ end
 
 local yellow = Color:yellow()
 
+---Create a new custom entity type that is a backpack, using jetpack as base entity
+---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
+---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
+---@param flammable boolean @non-flammable backs might still generate the warning sound for a short time, might crash on OL but not on PL
+---@return integer
 function module.new_custom_backpack(set_func, update_func, flammable)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
@@ -885,6 +956,12 @@ local function set_item_draw_callbacks()
     end
 end
 
+---Manually create item draw info for displaying as powerup in HUD, probably not needed for a normal powerup
+---@param texture_id integer
+---@param row integer
+---@param column integer
+---@param color userdata | nil
+---@return table
 function module.new_item_draw_info(texture_id, row, column, color)
     color = color ~= nil and color or item_hud_color
     return {
@@ -895,13 +972,25 @@ function module.new_item_draw_info(texture_id, row, column, color)
     }
 end
 
+---add an item to be drawn on a player HUD, is cleared ON.PRE_LEVEL_GENERATION
+---@param player_num integer
+---@param item_draw_info table @Created with new_item_draw_info
+---@return integer @returns position of `player_items_draw[player_num]` where the item will be drawn
 function module.add_player_item_draw(player_num, item_draw_info)
     set_item_draw_callbacks()
     local new_pos = #player_items_draw[player_num]+1
     player_items_draw[player_num][new_pos] = item_draw_info
-    return player_num, new_pos
+    return new_pos
 end
 
+---Create a new custom entity type that is a powerup, will be called on the player
+---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
+---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
+---@param texture_id integer
+---@param row integer
+---@param column integer
+---@param color userdata | nil
+---@return integer
 function module.new_custom_powerup(set_func, update_func, texture_id, row, column, color)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
@@ -941,10 +1030,20 @@ function module.new_custom_powerup(set_func, update_func, texture_id, row, colum
     return custom_id
 end
 
+---Set what a powerup will drop when the player dies
+---@param custom_powerup_id integer @id of the custom powerup
+---@param custom_pickup_id integer @id of the custom pickup that will be droped
 function module.set_powerup_drop(custom_powerup_id, custom_pickup_id)
     custom_types[custom_powerup_id].custom_pickup_id = custom_pickup_id
 end
 
+---Create a new custom entity type
+---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
+---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
+---@param pickup_func fun(ent: userdata, player: userdata, c_data: table, has_powerup: boolean) @called when a player picks up the pickup, use `do_pickup_effect` to generate the effect easily
+---@param custom_powerup_id integer
+---@param ent_type integer | nil
+---@return integer
 function module.new_custom_pickup(set_func, update_func, pickup_func, custom_powerup_id, ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
@@ -980,6 +1079,12 @@ function module.new_custom_pickup(set_func, update_func, pickup_func, custom_pow
 end
 
 local get_item_sound = get_sound(VANILLA_SOUND.UI_GET_ITEM1)
+
+---Generate pickup fx on player, set a texture and animation_frame
+---@param player_uid integer
+---@param texture_id integer
+---@param animation_frame integer
+---@return userdata @returns the `FX_PICKUPEFFECT` entity
 function module.do_pickup_effect(player_uid, texture_id, animation_frame)
     local pickup_fx = get_entity(spawn_entity_over(ENT_TYPE.FX_PICKUPEFFECT, player_uid, 0, 0))
     if texture_id then
@@ -1019,6 +1124,11 @@ local function spawn_pickup_replacement(ent, c_data, toreplace_custom_id)
     end
 end
 
+---Create a new custom entity type
+---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
+---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
+---@param toreplace_custom_id integer @id of the custom entity that will replace this when bought / shopkeeper angry
+---@return integer
 function module.new_custom_purchasable_pickup(set_func, update_func, toreplace_custom_id)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
@@ -1043,21 +1153,40 @@ function module.new_custom_purchasable_pickup(set_func, update_func, toreplace_c
     return custom_id
 end
 
+---Set an entity to be a custom one
+---@param uid integer
+---@param custom_type_id integer @id of the custom entity type
+---@param optional_args any @any type of value that will be recived on the entity set function, use as table if you want to pass more arguments
 function module.set_custom_entity(uid, custom_type_id, optional_args)
     local ent = get_entity(uid)
     set_custom_entity(uid, ent, custom_type_id, nil, optional_args)
 end
 
+---Spawn a custom entity, make sure to have defined the ent_type on the custom ent type to use this
+---@param custom_type_id integer @id of the custom entity type
+---@param x integer
+---@param y integer
+---@param l integer
+---@param vel_x number
+---@param vel_y number
+---@param optional_args any @any type of value that will be recived on the entity set function, use as table if you want to pass more arguments
 function module.spawn_custom_entity(custom_type_id, x, y, l, vel_x, vel_y, optional_args)
     local uid = spawn(custom_types[custom_type_id].ent_type, x, y, l, vel_x, vel_y)
     local ent = get_entity(uid)
     set_custom_entity(uid, ent, custom_type_id, nil, optional_args)
 end
 
+---Add a callback after the entity doesn't exist anymore
+---@param custom_ent_id integer
+---@param callback EntUpdate
 function module.add_after_destroy_callback(custom_ent_id, callback)
     custom_types[custom_ent_id].after_destroy_callback = callback
 end
 
+---Get the data of a custom entity, returns nil if doesn't exist
+---@param ent_uid integer
+---@param custom_ent_id integer
+---@return table
 function module.get_custom_entity(ent_uid, custom_ent_id)
     return custom_types[custom_ent_id].entities[ent_uid]
 end
@@ -1185,7 +1314,13 @@ local function add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
     end
 end
 
-function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types, max_one) --max one per shop
+---Add chance to be in a shop or shops, use `SHOP_TYPE` (that uses SHOP_TYPE and ROOM_TEMPLATE from the scripting api) and `CHANCE` from the library.
+---Doesn't replace hhs or mounts, only items
+---@param custom_ent_id integer
+---@param chance_type any @Use CHANCE.*
+---@param shop_types integer | integer[]
+---@param max_one boolean @Limit the entity to only spawn max one time per shop
+function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types, max_one)
     if not custom_shop_items_set then
         set_custom_shop_spawns()
     end
@@ -1204,15 +1339,16 @@ local toreplace_crate_content = {
     entity_type = nil
 }
 local function set_custom_container_spawns()
-    set_post_entity_spawn(function(crate)
-        local function customize_drop(crate)
-            local custom_type_id, entity_type = get_custom_item_from_chances(custom_types_container[crate.type.id])
-            if custom_type_id then
-                crate.inside = ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN
-                toreplace_crate_content.custom_type_id = custom_type_id
-                toreplace_crate_content.entity_type = entity_type
-            end
+    local function customize_drop(crate)
+        local custom_type_id, entity_type = get_custom_item_from_chances(custom_types_container[crate.type.id])
+        if custom_type_id then
+            crate.inside = ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN
+            toreplace_crate_content.custom_type_id = custom_type_id
+            toreplace_crate_content.entity_type = entity_type
         end
+    end
+
+    set_post_entity_spawn(function(crate)
         set_on_kill(crate.uid, customize_drop)
         set_on_open(crate.uid, customize_drop)
     end, SPAWN_TYPE.ANY, MASK.ANY, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_GHIST_PRESENT})
@@ -1229,6 +1365,10 @@ local function set_custom_container_spawns()
     custom_container_items_set = true
 end
 
+---Add chance of a custom entity to be in a container
+---@param custom_ent_id integer
+---@param chance_type any @Use CHANCE.*
+---@param container_types integer | integer[]
 function module.add_custom_container_chance(custom_ent_id, chance_type, container_types)
     if not custom_container_items_set then
         set_custom_container_spawns()
@@ -1242,7 +1382,11 @@ function module.add_custom_container_chance(custom_ent_id, chance_type, containe
     end
 end
 
-function module.set_price(entity, base_price, inflation) --made for the set_callback, for some reason you need to wait one frame and get the entity againt to make it work
+---Made for the set_callback, for some reason you need to wait one frame and get the entity again to make it work
+---@param entity userdata
+---@param base_price integer
+---@param inflation integer
+function module.set_price(entity, base_price, inflation)
     set_timeout(function()
         local _, y, l = get_position(entity.uid)
         if test_flag(state.presence_flags, 2) and y < 80 and l == LAYER.BACK then --if black market
@@ -1253,7 +1397,7 @@ function module.set_price(entity, base_price, inflation) --made for the set_call
     end, 1)
 end
 
-module.custom_types = custom_types
+module.custom_types = custom_types --array of custom types
 module.SHOP_TYPE = SHOP_ROOM_TYPES
 module.CARRY_TYPE = {
     HELD = 1,
