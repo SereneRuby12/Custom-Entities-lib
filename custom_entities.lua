@@ -344,7 +344,7 @@ local function set_clonegunshot_custom_ent()
                 local cloned_uid = overlapping_types[_type]
                 if cloned_uid then
                     for id, c_type in ipairs(custom_types) do
-                        if c_type.entities[cloned_uid] then
+                        if c_type.entities[cloned_uid] and c_type.carry_type ~= CARRY_TYPE.POWERUP then
                             set_custom_entity(spawned_uid, spawned_ent, id, module.get_custom_entity(cloned_uid, id))
                         end
                     end
