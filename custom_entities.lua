@@ -81,9 +81,7 @@ local function clone_chances(tabl)
     }
 end
 
-local shop_items = {ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_SKELETON_KEY, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_METAL_SHIELD, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_PICKUP_HEDJET, ENT_TYPE.ITEM_PICKUP_ROYALJELLY, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_WOODEN_ARROW, ENT_TYPE.ITEM_PICKUP_COOKEDTURKEY}
-local shop_guns = {ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CROSSBOW}
-local all_shop_ents = join(shop_items, shop_guns)
+local all_shop_ents = {ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_SKELETON_KEY, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_METAL_SHIELD, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_PICKUP_HEDJET, ENT_TYPE.ITEM_PICKUP_ROYALJELLY, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_WOODEN_ARROW, ENT_TYPE.ITEM_PICKUP_COOKEDTURKEY, ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CROSSBOW}
 local normal_shop_rooms = {ROOM_TEMPLATE.SHOP, ROOM_TEMPLATE.SHOP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_UP, ROOM_TEMPLATE.SHOP_ENTRANCE_UP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN_LEFT}
 local DICESHOP_ITEMS = {ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CROSSBOW, ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK}
 
@@ -462,6 +460,34 @@ function module.stop()
     clear_callback(cb_clonegunshot)
 end
 
+--update last_holder when there's a portal and the entity isn't entering it
+local function update_custom_held_portal(ent, c_data, is_portal)
+    if is_portal and ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
+        c_data.last_holder = ent.overlay
+    end
+end
+
+local function update_custom_mount_portal(ent, c_data, is_portal)
+    if is_portal and ent.state ~= 24 and ent.last_state ~= 24 then
+        c_data.last_holder = ent.overlay
+        c_data.last_rider_uid = ent.rider_uid
+    end
+end
+
+local function update_custom_held(ent, c_data, c_type, is_portal)
+    c_type.update_callback(ent, c_data)
+    update_custom_held_portal(ent, c_data, is_portal)
+end
+
+local function update_custom_mount(ent, c_data, c_type, is_portal)
+    c_type.update_callback(ent, c_data)
+    update_custom_mount_portal(ent, c_data, is_portal)
+end
+
+local function update_custom_ent(ent, c_data, c_type, _)
+    c_type.update_callback(ent, c_data)
+end
+
 function module.new_custom_entity(set_func, update_func, carry_type, opt_ent_type)
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
@@ -473,28 +499,11 @@ function module.new_custom_entity(set_func, update_func, carry_type, opt_ent_typ
     }
 
     if carry_type == CARRY_TYPE.HELD then
-        custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
-            c_type.update_callback(ent, c_data)
-            if is_portal then
-                if ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
-                    c_data.last_holder = ent.overlay
-                end
-            end
-        end
+        custom_types[custom_id].update = update_custom_held
     elseif carry_type == CARRY_TYPE.MOUNT then
-        custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
-            c_type.update_callback(ent, c_data)
-            if is_portal then
-                if ent.state ~= 24 and ent.last_state ~= 24 then
-                    c_data.last_holder = ent.overlay
-                    c_data.last_rider_uid = ent.rider_uid
-                end
-            end
-        end
+        custom_types[custom_id].update = update_custom_mount
     else
-        custom_types[custom_id].update = function(ent, c_data, c_type)
-            c_type.update_callback(ent, c_data)
-        end
+        custom_types[custom_id].update = update_custom_ent
     end
     return custom_id
 end
@@ -525,17 +534,13 @@ function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil
             end
         end
         c_type.update_callback(ent, c_data)
-        if is_portal then
-            if ent.state ~= 24 and ent.last_state ~= 24 then
-                c_data.last_holder = ent.overlay
-            end
-        end
+        update_custom_held_portal(ent, c_data, is_portal)
     end
     return custom_id
 end
 
 local function set_custom_bullet_callback(weapon_id)
-    set_pre_entity_spawn(function(entity_type, x, y, layer, overlay_ent, spawn_flags)
+    set_pre_entity_spawn(function(entity_type, x, y, layer, _, _)
         --horizontal offset probably isn't very useful to know cause it changes when being next to a wall
         --freezeray and clonegun bullet offset: 0.5, ~0.12
         --plasmacannon: ~0.3545, 0.0
@@ -617,11 +622,7 @@ function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, rec
             c_data.not_shot = true
         end
         c_type.update_callback(ent, c_data)
-        if is_portal then
-            if ent.state ~= 24 and ent.last_state ~= 24 then
-                c_data.last_holder = ent.overlay
-            end
-        end
+        update_custom_held_portal(ent, c_data, is_portal)
     end
     return custom_id
 end
@@ -648,10 +649,10 @@ function module.new_custom_purchasable_back(set_func, update_func, toreplace_cus
     local custom_id = #custom_types + 1
     custom_types[custom_id] = {
         update_callback = update_func,
+        ent_type = ENT_TYPE.ITEM_ROCK,
         entities = {}
     }
     if flammable then
-        custom_types[custom_id].ent_type = ENT_TYPE.ITEM_ROCK
         custom_types[custom_id].set = function(ent, c_data, args)
             ent.flags = clr_flag(ent.flags, ENT_FLAG.TAKE_NO_DAMAGE)
             ent.hitboxx = 0.3
@@ -696,7 +697,6 @@ function module.new_custom_purchasable_back(set_func, update_func, toreplace_cus
             end
         end
     else
-        custom_types[custom_id].ent_type = ENT_TYPE.ITEM_ROCK
         custom_types[custom_id].set = function(ent, c_data, args)
             ent.hitboxx = 0.3
             ent.hitboxy = 0.35
@@ -765,11 +765,7 @@ function module.new_custom_backpack(set_func, update_func, flammable)
             else
                 c_type.update_callback(ent, c_data)
             end
-            if is_portal then
-                if ent.state ~= 24 and ent.last_state ~= 24 then
-                    c_data.last_holder = holder
-                end
-            end
+            update_custom_held_portal(ent, c_data, is_portal)
         end
     else
         custom_types[custom_id].set = function(ent, c_data)
@@ -819,10 +815,8 @@ function module.new_custom_backpack(set_func, update_func, flammable)
             end
             if test_flag(ent.flags, ENT_FLAG.DEAD) then
                 move_entity(ent.uid, 0, -123, 0, 0)
-            elseif is_portal then
-                if ent.state ~= 24 and ent.last_state ~= 24 then
-                    c_data.last_holder = ent.overlay
-                end
+            else
+                update_custom_held_portal(ent, c_data, is_portal)
             end
         end
     end
@@ -963,11 +957,7 @@ function module.new_custom_pickup(set_func, update_func, pickup_func, custom_pow
                 end
             end
         end
-        if is_portal then
-            if ent.state ~= 24 and ent.last_state ~= 24 then
-                c_data.last_holder = ent.overlay
-            end
-        end
+        update_custom_held_portal(ent, c_data, is_portal)
     end
     return custom_id
 end
