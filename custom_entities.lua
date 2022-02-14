@@ -189,15 +189,31 @@ local function set_transition_info(c_type_id, data, slot, carry_type)
     })
 end
 
-local function set_transition_info_hh(c_type_id, data, e_type, hp, cursed, poisoned)
+local function get_hh_number(char_uid, hh_info_cache)
+    local char = get_entity(char_uid)
+    if char.inventory.player_slot == -1 then
+        if hh_info_cache[char] then
+            local char_num, player_slot = table.unpack(hh_info_cache[char])
+            return char_num + 1, player_slot
+        end
+        local char_num, player_slot = get_hh_number(char.linked_companion_parent, hh_info_cache)
+        char_num = char_num + 1
+        hh_info_cache[char_uid] = {char_num, player_slot}
+        return char_num, player_slot
+    else --is a player
+        return 0, char.inventory.player_slot
+    end
+end
+
+local function set_transition_info_hh(c_type_id, data, e_type, hh_uid, hh_info_cache)
+    local hh_num, leader_player_slot = get_hh_number(hh_uid, hh_info_cache)
     table.insert(custom_entities_t_info_hh,
     {
         custom_type_id = c_type_id,
         data = data,
         e_type = e_type,
-        hp = hp,
-        cursed = cursed,
-        poisoned = poisoned
+        hh_num = hh_num,
+        leader_player_slot = leader_player_slot
     })
 end
 
@@ -265,12 +281,12 @@ local function set_custom_ents_from_previous(companions)
             end
         end
     end
+    local hh_info_cache = {}
     for _, info in pairs(custom_entities_t_info_hh) do
         for _, uid in ipairs(companions) do
+            local hh_num, player_slot = get_hh_number(uid, hh_info_cache)
             local ent = get_entity(uid)
-            if ent.type.id == info.e_type and ent.linked_companion_parent ~= -1 and
-            ent.health == info.hp and test_flag(ent.more_flags, ENT_MORE_FLAG.CURSED_EFFECT) == info.cursed and
-            ent:is_poisoned() == info.poisoned then
+            if ent.type.id == info.e_type and hh_num == info.hh_num and player_slot == info.leader_player_slot then
                 local custom_ent = ent:get_held_entity()
                 if custom_ent then
                     set_custom_entity(custom_ent.uid, custom_ent, info.custom_type_id, info.data)
@@ -291,7 +307,7 @@ set_post_tile_code_callback(function(x, y, l)
     end
 end, 'storage_floor')
 
-local function get_types(entity_uids)
+local function get_types_cloneable(entity_uids)
     local ret = {}
     for _, uid in ipairs(entity_uids) do
         if not test_flag(get_entity_flags(uid), 32) then -- is always enabled when the entity is held by something
@@ -315,7 +331,7 @@ local function set_clonegunshot_custom_ent()
     end, nil, ENT_TYPE.ITEM_CLONEGUNSHOT)
 
     module.add_after_destroy_callback(_clonegunshot_custom_id, function(c_data)
-        local overlapping_types = get_types(c_data.last_overlapping)
+        local overlapping_types = get_types_cloneable(c_data.last_overlapping)
         for _, uid in ipairs(get_entities_by_type(ENT_TYPE.FX_TELEPORTSHADOW)) do
             if get_entity_type(uid+1) ~= ENT_TYPE.FX_TELEPORTSHADOW then
                 local spawned_uid = uid-1
@@ -363,6 +379,7 @@ function module.init(game_frame, not_handle_clonegun)
         local is_storage_floor_there = #get_entities_by_type(ENT_TYPE.FLOOR_STORAGE) > 0
         if ((state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP) or state.screen_next == SCREEN.SPACESHIP) then
             if state.loading == 2 then
+                local hh_info_cache = {}
                 for c_id,c_type in ipairs(custom_types) do
                     for uid, c_data in pairs(c_type.entities) do
                         if c_type.carry_type == CARRY_TYPE.HELD then
@@ -377,7 +394,7 @@ function module.init(game_frame, not_handle_clonegun)
                                 if holder:worn_backitem() == uid then
                                     set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.BACK)
                                 elseif holder.inventory.player_slot == -1 then
-                                    set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
+                                    set_transition_info_hh(c_id, c_data, holder.type.id, holder.uid, hh_info_cache)
                                 else
                                     set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
                                 end
@@ -396,7 +413,7 @@ function module.init(game_frame, not_handle_clonegun)
                             end
                             if holder then
                                 if holder.inventory.player_slot == -1 then
-                                    set_transition_info_hh(c_id, c_data, holder.type.id, holder.health, test_flag(holder.more_flags, ENT_MORE_FLAG.CURSED_EFFECT), holder:is_poisoned())
+                                    set_transition_info_hh(c_id, c_data, holder.type.id, holder.uid, hh_info_cache)
                                 else
                                     set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
                                 end
