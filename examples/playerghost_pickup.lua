@@ -235,4 +235,4 @@ set_callback(function(render_ctx, draw_depth)
     end
 end, ON.RENDER_PRE_DRAW_DEPTH)
 
-celib.init(true)
+celib.init()

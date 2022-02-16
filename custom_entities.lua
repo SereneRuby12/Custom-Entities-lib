@@ -1,6 +1,6 @@
 meta = {
     name = "Custom-Entities-Library",
-    version = "0.9",
+    version = "0.9.1",
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
@@ -43,7 +43,8 @@ local FLAGS_BIT = { --https://github.com/Mr-Auto/spelunky2-lua-libs/blob/main/li
 local module = {}
 local custom_types = {}
 
-local cb_update, cb_loading, cb_transition, cb_post_room_gen, cb_post_level_gen, cb_clonegunshot = -1, -1, -1, -1, -1, -1
+local cb_update, cb_loading, cb_transition, cb_pre_level_gen, cb_post_level_gen, cb_clonegunshot = -1, -1, -1, -1, -1, -1
+local didnt_init = true
 
 ---@class TransitionInfo
 ---@field custom_type_id integer
@@ -385,7 +386,7 @@ end
 ---init the lib callbacks
 ---@param game_frame boolean @Run on GAMEFRAME if `true`
 ---@param not_handle_clonegun boolean @disable handling cloning of custom entities
-function module.init(game_frame, not_handle_clonegun)
+function module.custom_init(game_frame, not_handle_clonegun)
     if (game_frame) then
         cb_update = set_callback(function()
             update_customs()
@@ -490,12 +491,20 @@ function module.init(game_frame, not_handle_clonegun)
         end
     end, ON.POST_LEVEL_GENERATION)
 
-    cb_post_room_gen = set_callback(function()
+    cb_pre_level_gen = set_callback(function()
         shops_by_room_pos = {}
         for _,c_type in ipairs(custom_types) do
             c_type.entities = {}
         end
     end, ON.PRE_LEVEL_GENERATION)
+end
+
+---init the lib callbacks (checks if it was already init and uses GAMEFRAME by default)
+function module.init()
+    if didnt_init then
+        module.custom_init(true)
+        didnt_init = false
+    end
 end
 
 ---Stop the library callbacks (not the extras callbacks)
@@ -504,8 +513,9 @@ function module.stop()
     clear_callback(cb_loading)
     clear_callback(cb_transition)
     clear_callback(cb_post_level_gen)
-    clear_callback(cb_post_room_gen)
+    clear_callback(cb_pre_level_gen)
     clear_callback(cb_clonegunshot)
+    didnt_init = true
 end
 
 --update last_holder when there's a portal and the entity isn't entering it

@@ -1,8 +1,12 @@
 # Functions (the ones in red arent made yet):
 
-### :white_check_mark: void init(bool gameframe, bool disable_custom_entities_cloning)
+### :white_check_mark: void init()
 
-inits lib callbacks, if the bool is true then the update callbacks will be called on ON.GAMEFRAME instead of ON.FRAME
+inits the lib callbacks, defaults to use GAMEFRAME and enables custom entity cloning. Also doesn't start callbacks if the function was already called (and not stopped with stop()). This makes it better if the library comes to a library that must be installed as other mod and is used by different mods at the same time (exports).
+
+### :white_check_mark: void custom_init(bool gameframe, bool disable_custom_entities_cloning)
+
+inits lib callbacks, if the bool is true then the update callbacks will be called on ON.GAMEFRAME instead of ON.FRAME, note that using FRAME will stop the update of custom entities after death and won't work on camp or arena, could cause weird things like non-flammable backs to explode after death.
 
 The disable_custom_entities_cloning disables the need of keeping track of clonegunshot, but obviously, custom entities won't be cloned correctly.
 

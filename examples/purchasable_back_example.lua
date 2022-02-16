@@ -38,7 +38,7 @@ local function rainbow_cape_update(ent, data)
     end
 end
 
-c_ent_lib.init(true)
+c_ent_lib.init()
 local rainbow_cape = c_ent_lib.new_custom_entity(rainbow_cape_set, rainbow_cape_update, c_ent_lib.CARRY_TYPE.HELD, ENT_TYPE.ITEM_CAPE)
 local rainbow_cape_p = c_ent_lib.new_custom_purchasable_back(rainbow_cape_set, rainbow_cape_update, rainbow_cape, false)
 

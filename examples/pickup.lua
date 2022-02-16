@@ -78,7 +78,7 @@ celib.add_custom_container_chance(pickup_id, celib.CHANCE.COMMON, celib.ALL_CONT
 
 celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.COMMON, celib.ALL_SHOPS, true)
 
-celib.init(true)
+celib.init()
 
 set_callback(function()
     local x, y, l = get_position(players[1].uid)
