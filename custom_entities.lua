@@ -1,6 +1,6 @@
 meta = {
     name = "Custom-Entities-Library",
-    version = "0.9.1",
+    version = "0.9.1a",
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
@@ -218,6 +218,7 @@ local function set_transition_info(c_type_id, data, slot, carry_type)
 end
 
 local function get_hh_number(char_uid, hh_info_cache)
+    ---@type Player
     local char = get_entity(char_uid)
     if char.inventory.player_slot == -1 then
         if hh_info_cache[char] then
@@ -414,6 +415,7 @@ function module.custom_init(game_frame, not_handle_clonegun)
                 for c_id,c_type in ipairs(custom_types) do
                     for uid, c_data in pairs(c_type.entities) do
                         if c_type.carry_type == CARRY_TYPE.HELD then
+                            ---@type Movable
                             local ent = get_entity(uid)
                             local holder
                             if not ent or ent.state == 24 or ent.last_state == 24 then
@@ -433,6 +435,7 @@ function module.custom_init(game_frame, not_handle_clonegun)
                                 set_transition_info_storage(c_id, c_data, ent.type.id)
                             end
                         elseif c_type.carry_type == CARRY_TYPE.MOUNT then
+                            ---@type Mount
                             local ent = get_entity(uid)
                             local holder, rider_uid
                             if not ent or ent.state == 24 or ent.last_state == 24 then
@@ -455,6 +458,7 @@ function module.custom_init(game_frame, not_handle_clonegun)
                                 end
                             end
                         elseif c_type.carry_type == CARRY_TYPE.POWERUP then
+                            ---@type Player
                             local ent = get_entity(uid)
                             if ent then
                                 set_transition_info(c_id, c_data, ent.inventory.player_slot, CARRY_TYPE.POWERUP)
@@ -629,6 +633,7 @@ local function set_custom_bullet_callback(weapon_id)
                 local c_data = c_type.entities[weapon_uid]
                 if c_data and c_type.bulletfunc and weapon_info[c_type.ent_type].bullet == entity_type and (c_data.not_shot and c_data.not_shot ~= 0) then
                     local weapon = get_entity(weapon_uid)
+                    ---@type Movable
                     local holder = weapon.overlay
                     if holder and ( (holder:is_button_pressed(BUTTON.WHIP) and holder.state ~= CHAR_STATE.DUCKING) or (holder.type.id == ENT_TYPE.MONS_CAVEMAN and holder.velocityy > 0.05 and holder.velocityy < 0.0501 and holder.state == CHAR_STATE.STANDING) ) and weapon.cooldown == 0 then
                         local wx, wy = get_position(weapon_uid)
@@ -768,6 +773,7 @@ function module.new_custom_purchasable_back(set_func, update_func, toreplace_cus
                         if get_entity(ent.last_owner_uid).type.search_flags == MASK.PLAYER then
                             get_entity(c_data.shop_owner).aggro_trigger = true
                         else
+                            ---@type Movable
                             local shop_owner = get_entity(c_data.shop_owner)
                             if shop_owner.holding_uid ~= -1 then
                                 get_entity(shop_owner.holding_uid):trigger_action(shop_owner)
@@ -1112,7 +1118,7 @@ local function spawn_pickup_replacement(ent, c_data, toreplace_custom_id)
         buyer = ent.overlay
     else
         for _, player in ipairs(players) do
-            if ent:overlaps_with(player) and player.standing_uid ~= -1 and player:is_button_pressed(BUTTON.DOOR) then
+            if ent:overlaps_with(player) and player.standing_on_uid ~= -1 and player:is_button_pressed(BUTTON.DOOR) then
                 buyer = player
                 break
             end
