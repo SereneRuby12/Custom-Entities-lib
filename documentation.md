@@ -14,13 +14,13 @@ The disable_custom_entities_cloning disables the need of keeping track of cloneg
 
 stops lib callbacks, currently doesn't stop all the callbacks, anyways, you probably won't use this.
 
-### :white_check_mark: int id new_custom_entity(function(entity, transition_data, args) set_func, function(entity, custom_ent_info) updatefunc, optional\<CARRY_TYPE\> carry_type, optional\<int\> ent_type)
+### :white_check_mark: int id new_custom_entity(function(entity, transition_data, args) set_func, function(entity, custom_ent_info) updatefunc, optional\<CARRY_TYPE\> carry_type, optional\<int\> ent_type, optional\<UPDATE_TYPE\> update_type)
 
 Set a new custom entity behiavour to be asigned in set_custom_entity()
 
 The function should take care of items being taken to next levels, waddler, etc.
 
-**The set function must return a table** for storing info about the entity, that will be passed to the updatefunc (custom_ent_info), and set_func (transition_data) if the entity can go through levels (items, mounts) or is cloned.
+The set function can return a table that you can use for storing info about the entity, that will be passed to the updatefunc (custom_ent_info), and set_func (transition_data) if the entity can go through levels (items, mounts) or is cloned.
 
 For carry_type, use CARRY_TYPE.HELD or .MOUNT
 
@@ -93,6 +93,12 @@ Set a function to be called after the entity stops existing. Only one function p
 - `MOUNT` 2
 - `POWERUP` 4
 - Use nil if the entity isn't carried through levels
+
+### **UPDATE_TYPE**
+- `FRAME` 0
+- `POST_STATEMACHINE` 1
+- `PRE_STATEMACHINE` 2
+
 ### ALL_SHOPS
 
 A table containing all the shop types
