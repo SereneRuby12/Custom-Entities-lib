@@ -1,4 +1,5 @@
-local celib = require "custom_entities"
+local celib = import("estebanfer/custom-entities-library")
+--local celib = require "custom_entities"
 
 local grapple_texture_id
 do
@@ -65,7 +66,7 @@ local function get_solids(floors)
     return solids
 end
 
-local function grapple_hook_set(ent, _, args) --gun, angle, facing_left, gun_overlay
+local function grapple_hook_set(ent, _, _, args) --gun, angle, facing_left, gun_overlay
     local custom_data = {
         ["attached"] = false,
         ["chain_draw_id"] = nil,
@@ -163,7 +164,7 @@ end
 
 celib.add_after_destroy_callback(hook_id, grapple_hook_destroy)
 
-local function grapple_gun_set(ent, c_data)
+local function grapple_gun_set(ent, _, custom_id)
     local custom_data = {
         ["shot"] = false,
         ["attached_uid"] = -1,
@@ -172,10 +173,7 @@ local function grapple_gun_set(ent, c_data)
         ["facing_left"] = false,
         ["angle"] = ent.angle
     }
-    ent:set_texture(grapple_texture_id)
-    ent.animation_frame = 0
-    add_custom_name(ent.uid, "Grapple gun")
-    celib.set_price(ent, 6500, 1000)
+    celib.set_entity_info_from_custom_id(ent, custom_id)
     return custom_data
 end
 
@@ -224,8 +222,12 @@ end
 
 local grapple_id = celib.new_custom_gun(grapple_gun_set, grapple_gun_update, grapple_gun_shoot, 4, 0.05, 0.025, ENT_TYPE.ITEM_CLONEGUN)
 
+celib.add_custom_entity_info(grapple_id, "Grapple gun", grapple_texture_id, 0, 6500, 1000)
+
 celib.add_custom_shop_chance(grapple_id, celib.CHANCE.COMMON, {celib.SHOP_TYPE.SPECIALTY_SHOP, celib.SHOP_TYPE.TUN, celib.SHOP_TYPE.CAVEMAN}, true)
 celib.add_custom_container_chance(grapple_id, celib.CHANCE.COMMON, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT})
+celib.add_custom_entity_crust_chance(grapple_id, 1.0)
+celib.define_custom_entity_tilecode(grapple_id, "grapple_gun", true)
 
 celib.init()
 

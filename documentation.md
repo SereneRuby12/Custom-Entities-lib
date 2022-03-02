@@ -58,15 +58,31 @@ Only replaces items, not hh or mounts.
 
 (requires ent_type on custom_ent to be set)
 
-### :red_circle: void set_custom_entity_wall_chance(custom_ent_id)
+### :red_circle: void set_custom_entity_wall_chance(custom_ent_id, chance)
 
-add chance to be incrusted in a block
+add chance to be incrusted in a block, change from 1 to 100 for the entity to spawn one time in the level
 
 (requires ent_type on custom_ent to be set)
 
 ### :white_check_mark: void set_price(entity, base_price, inflation)
 
 Sets the price of an entity for the level. Use this only in the set function for custom entities, this solves an error that shows when setting the price on the first frame.
+
+### add_custom_entity_crust_chance(custom_id, chance)
+
+Add chance for the custom entity type to spawn in crust (inside floor). The chance is from `0.0` to `1.0` and will only spawn it max one time per level.
+
+### :white_check_mark: add_custom_entity_info(custom_id, name, texture_id, anim_frame, price, price_inflation)
+
+Add info of the entity to the custom entity type. Can be used with `set_entity_info_from_custom_id` on the set function
+
+### :white_check_mark: set_entity_info_from_custom_id(ent, custom_id)
+
+Apply the entity info set on `add_custom_entity_info` (name, texture, animation frame, and price if has a price)
+
+### :white_check_mark: define_custom_entity_tilecode(custom_id, tilecode_name, spawn_to_floor)
+
+Define a tilecode for your custom entity in one line of code
 
 ### :white_check_mark: void add_after_destroy_callback(custom_ent_id, function(custom_ent_info) callback)
 Set a function to be called after the entity stops existing. Only one function per custom entity.

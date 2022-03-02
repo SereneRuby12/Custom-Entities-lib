@@ -1,5 +1,16 @@
 # Version Changelog
 
+## `1.0-rc2`
+- Added various functions:
+- `add_custom_entity_crust_chance` for making custom entities to have a change to spawn in crust, uses ALIVE_EMBED_ON_ICE, so it needs the `texture_id` and `animation_frame` to be defines using new function `add_custom_entity_info`
+- `add_custom_entity_info` add some info of the entity to the custom entity type (name, texture, animation frame, and optional price), and you can use `set_entity_info_from_custom_id` on the set function
+- `set_entity_info_from_custom_id` applies the entity info that is added on `set_entity_info_from_custom_id`
+- `define_custom_entity_tilecode` to add a custom tilecode for the custom entity.
+- Modified params of the set function, added custom_type_id as third param, and moved args to fourth param
+- Fixed containers only spawing a custom item only one time ever (until restarting the mod)
+- Curio (Tun) and caveman shop now are checked by shop type instead of by room template
+- Removed messpect that will probably never be used
+
 ## `1.0-rc1`
 - This version might have some issues due to having exports, if you want to use exports and have the lib as a mod, use something like `local celib = import("Estebanfer/custom-entities-library")`, or if you want to have the lib in your mod folder, remove the line of exports as said below to prevent possible issues
 - Returning a table should no longer be required on the custom entity set function
