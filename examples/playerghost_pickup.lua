@@ -1,7 +1,27 @@
-local celib = require "custom_entities"
+local celib = import("estebanfer/custom-entities-library")
+--local celib = require "custom_entities"
 
 local player_colors = {}
 local ghost_id, powerup_id, pickup_id
+
+---@class GhostPowerup
+---@field is_button_held boolean
+---@field controlling_ghost boolean
+---@field ghost_uid integer
+
+---@class ChainedPlayerGhost
+---@field controlling_ghost boolean
+---@field just_changed boolean
+---@field changing boolean
+---@field alpha number
+---@field increasing_alpha boolean
+---@field chain_id integer
+---@field player_uid integer
+---@field statemachine integer
+
+---@class GhostChain
+---@field ghost_uid integer
+---@field player_uid integer
 
 local mirror_texture_id
 do
@@ -15,7 +35,20 @@ do
     mirror_texture_id = define_texture(mirror_texture_def)
 end
 
+---@type GhostChain[]
 local ghost_chains = {}
+
+local function remove_chain(arr, pos)
+    messpect(#arr)
+    arr[pos] = arr[#arr]
+    arr[#arr] = nil
+    if arr[pos] then
+        local hook_c_data = celib.get_custom_entity(arr[pos].ghost_uid, ghost_id)
+        if hook_c_data then
+            hook_c_data.chain_id = pos
+        end
+    end
+end
 
 local function powerup_set_func(ent)
     messpect(state.screen)
@@ -44,20 +77,21 @@ local function powerup_set_func(ent)
             end, 1)
         end
         return {
-            ["is_button_held"] = true,
-            ["controlling_ghost"] = false,
-            ["ghost_uid"] = playerghost_uid,
+            is_button_held = true,
+            controlling_ghost = false,
+            ghost_uid = playerghost_uid,
         }
     end
 end
 
+---@param ent Player
+---@param c_data GhostPowerup
 local function powerup_update_func(ent, c_data)
     if test_flag(ent.flags, ENT_FLAG.DEAD) and not ent:has_powerup(ENT_TYPE.ITEM_POWERUP_ANKH) then
         local chain_id = celib.custom_types[ghost_id].entities[c_data.ghost_uid].chain_id
         messpect(#get_entities_by_type(ENT_TYPE.ITEM_PLAYERGHOST), 'ghosts')
         if ghost_chains[chain_id] then
-            ghost_chains[chain_id] = ghost_chains[#ghost_chains]
-            ghost_chains[#ghost_chains] = nil
+            remove_chain(ghost_chains, chain_id)
         end
 
         if state.items.player_count ~= 1 then
@@ -101,7 +135,6 @@ local function pickup_set_func(ent)
     ent.hitboxy = 0.27
     add_custom_name(ent.uid, "Ghost Mirror")
     celib.set_price(ent, 500, 20)
-    return {}
 end
 
 local function pickup_update_func()
@@ -111,7 +144,7 @@ local function pickup_picked_func(_, player)
     celib.do_pickup_effect(player.uid, mirror_texture_id, 0)
 end
 
-local function chained_ghost_set(ent, _, player_uid)
+local function chained_ghost_set(ent, _, _, player_uid)
     ent.flags = set_flag(ent.flags, ENT_FLAG.INVISIBLE)
     local statemachine = set_post_statemachine(ent.uid, function(entity)
         local c_data = celib.get_custom_entity(entity.uid, ghost_id) --celib.custom_types[ghost_id].entities[entity.uid]
@@ -130,20 +163,26 @@ local function chained_ghost_set(ent, _, player_uid)
             entity.color.a = c_data.alpha
         elseif not c_data.controlling_ghost then
             entity.color.a = 0
+            --TODO: chains not removed when spamming
+            if ghost_chains[c_data.chain_id] then
+                remove_chain(ghost_chains, c_data.chain_id)
+            end
         end
     end)
     return {
-        ["controlling_ghost"] = false,
-        ["just_changed"] = false,
-        ["changing"] = false,
-        ["alpha"] = 0.8,
-        ["increasing_alpha"] = false,
-        ["chain_id"] = -1,
-        ["player_uid"] = player_uid,
-        ["statemachine"] = statemachine
+        controlling_ghost = false,
+        just_changed = false,
+        changing = false,
+        alpha = 0.8,
+        increasing_alpha = false,
+        chain_id = -1,
+        player_uid = player_uid,
+        statemachine = statemachine
     }
 end
 
+---@param ent Player
+---@param c_data ChainedPlayerGhost
 local function chained_ghost_update(ent, c_data)
     if c_data.controlling_ghost then
         if distance(ent.uid, c_data.player_uid) > 5 then
@@ -162,10 +201,6 @@ local function chained_ghost_update(ent, c_data)
         if c_data.controlling_ghost then
             ent.lock_input_timer = 60
             c_data.increasing_alpha = false
-            if ghost_chains[c_data.chain_id] then
-                ghost_chains[c_data.chain_id] = ghost_chains[#ghost_chains]
-                ghost_chains[#ghost_chains] = nil
-            end
         else
             local px, py = get_position(c_data.player_uid)
             move_entity(ent.uid, px, py+0.8, 0, 0)
@@ -201,6 +236,7 @@ celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.LOW, {celib.SHO
 set_callback(function()
     local x, y, l = get_position(players[1].uid)
     celib.spawn_custom_entity(pickup_id, x, y, l, 0, 0)
+    celib.spawn_custom_entity(pickup_id, x+1, y, l, 0, 0)
 end, ON.START)
 
 set_callback(function()
@@ -227,7 +263,7 @@ set_callback(function(render_ctx, draw_depth)
             local it_xdiff, it_ydiff = xdiff/dist, ydiff/dist
             for i = 1, math.floor(dist) do
                 local color = player_colors[1]
-                local alpha = 0.5 --celib.custom_types[ghost_id].entities[v.ghost_uid].alpha * 0.5
+                local alpha = get_entity(v.ghost_uid).color.a--0.5 --celib.custom_types[ghost_id].entities[v.ghost_uid].alpha * 0.5
                 local ix, iy = player_x+it_xdiff*i, player_y+it_ydiff*i
                 render_ctx:draw_world_texture(TEXTURE.DATA_TEXTURES_ITEMS_0, 6, 12+i%2, ix-0.5, iy+0.5, ix+0.5, iy-0.5, Color:new(color.r, color.g, color.b, alpha))
             end
