@@ -1,6 +1,6 @@
 meta = {
     name = "Custom-Entities-Library",
-    version = "1.0-rc2",
+    version = "1.0",
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
@@ -243,10 +243,17 @@ local function _set_custom_entity(uid, ent, custom_type_id, c_data, optional_arg
     end
     if custom_type.update_type ~= module.UPDATE_TYPE.FRAME then
         if custom_type.update_type == module.UPDATE_TYPE.POST_STATEMACHINE then
-            set_post_statemachine(uid, custom_type.update)
+            c_data._statemachine = set_post_statemachine(uid, custom_type.update)
         else
-            set_pre_statemachine(uid, custom_type.update)
+            c_data._statemachine = set_pre_statemachine(uid, custom_type.update)
         end
+        set_on_kill(uid, function()
+            custom_type.entities[uid] = nil
+            clear_entity_callback(uid, c_data._statemachine)
+            if custom_type.after_destroy_callback then
+                custom_type.after_destroy_callback(c_data, uid)
+            end
+        end)
     end
     custom_type.entities[uid] = c_data
 end
@@ -455,8 +462,8 @@ function module.custom_init(game_frame, not_handle_clonegun)
     end
 
     cb_loading = set_callback(function()
-        local is_storage_floor_there = #get_entities_by_type(ENT_TYPE.FLOOR_STORAGE) > 0
         if ((state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP) or state.screen_next == SCREEN.SPACESHIP) then
+            local is_storage_floor_there = #get_entities_by_type(ENT_TYPE.FLOOR_STORAGE) > 0
             if state.loading == 2 then
                 local hh_info_cache = {}
                 for c_id,c_type in ipairs(custom_types) do

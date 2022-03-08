@@ -1,5 +1,10 @@
 # Version Changelog
 
+## `1.0`
+- Fixed custom entities that were updated on post or pre statemachine not being removes from custom_type entities table, and adding a after_destroy_callback will actually call it on_kill and pass entity as second param (entities that update on frame will still be the same)
+- Other small change
+- Updated examples
+
 ## `1.0-rc2`
 - Added various functions:
 - `add_custom_entity_crust_chance` for making custom entities to have a change to spawn in crust, uses ALIVE_EMBED_ON_ICE, so it needs the `texture_id` and `animation_frame` to be defines using new function `add_custom_entity_info`

@@ -163,9 +163,9 @@ local function chained_ghost_set(ent, _, _, player_uid)
             entity.color.a = c_data.alpha
         elseif not c_data.controlling_ghost then
             entity.color.a = 0
-            --TODO: chains not removed when spamming
             if ghost_chains[c_data.chain_id] then
                 remove_chain(ghost_chains, c_data.chain_id)
+                c_data.chain_id = -1
             end
         end
     end)
@@ -173,7 +173,7 @@ local function chained_ghost_set(ent, _, _, player_uid)
         controlling_ghost = false,
         just_changed = false,
         changing = false,
-        alpha = 0.8,
+        alpha = 0.0,
         increasing_alpha = false,
         chain_id = -1,
         player_uid = player_uid,
@@ -208,12 +208,13 @@ local function chained_ghost_update(ent, c_data)
             ent.lock_input_timer = 0
             c_data.increasing_alpha = true
 
-            ghost_chains[#ghost_chains+1] = {
-                ["player_uid"] = c_data.player_uid,
-                ["ghost_uid"] = ent.uid,
-                ["alpha"] = 0
-            }
-            c_data.chain_id = #ghost_chains
+            if c_data.chain_id == -1 then
+                ghost_chains[#ghost_chains+1] = {
+                    player_uid = c_data.player_uid,
+                    ghost_uid = ent.uid,
+                }
+                c_data.chain_id = #ghost_chains
+            end
         end
         c_data.controlling_ghost = not c_data.controlling_ghost
         c_data.just_changed = false
@@ -240,8 +241,10 @@ set_callback(function()
 end, ON.START)
 
 set_callback(function()
-    ghost_chains = {}
-end, ON.TRANSITION)
+    if state.loading == 2 then
+        ghost_chains = {}
+    end
+end, ON.LOADING)
 
 set_callback(function()
     ghost_chains = {}
