@@ -1,3 +1,10 @@
+meta = {
+    name = "Grapple Gun",
+    version = "WIP",
+    author = "Estebanfer",
+    description = ""
+}
+
 local celib = import("estebanfer/custom-entities-library")
 --local celib = require "custom_entities"
 

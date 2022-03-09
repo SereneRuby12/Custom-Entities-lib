@@ -1,3 +1,10 @@
+meta = {
+    name = "Empress thing pickup",
+    version = "WIP",
+    author = "Estebanfer",
+    description = ""
+}
+
 local celib = import("estebanfer/custom-entities-library")
 --local celib = require "custom_entities"
 
@@ -178,7 +185,7 @@ local function update_ghost_color(entity, c_data)
     end
 end
 
-local function chained_ghost_set(ent, _, _, player_uid)
+local function chained_ghost_set(_, _, _, player_uid)
     return {
         controlling_ghost = false,
         just_changed = false,

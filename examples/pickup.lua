@@ -1,4 +1,12 @@
-local celib = require "custom_entities"
+meta = {
+    name = "Rainbower",
+    version = "WIP",
+    author = "Estebanfer",
+    description = ""
+}
+
+local celib = import("estebanfer/custom-entities-library")
+--local celib = require "custom_entities"
 
 local colors = {'r', 'g', 'b'}
 

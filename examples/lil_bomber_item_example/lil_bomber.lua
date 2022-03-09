@@ -1,4 +1,12 @@
-local c_ent_lib = require "custom_entities"
+meta = {
+    name = "Lil bomber",
+    version = "WIP",
+    author = "Estebanfer",
+    description = ""
+}
+
+local c_ent_lib = import("estebanfer/custom-entities-library")
+--local c_ent_lib = require "custom_entities"
 
 local bomb_spawn_sound = get_sound(VANILLA_SOUND.ENEMIES_OLMEC_BOMB_SPAWN)
 local lil_bomber_texture

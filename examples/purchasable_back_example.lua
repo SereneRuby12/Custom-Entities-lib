@@ -1,4 +1,12 @@
-local c_ent_lib = require "custom_entities"
+meta = {
+    name = "Purchasable backpack example",
+    version = "WIP",
+    author = "Estebanfer",
+    description = ""
+}
+
+local c_ent_lib = import("estebanfer/custom-entities-library")
+--local c_ent_lib = require "custom_entities"
 
 local colors = {'r', 'g', 'b'}
 

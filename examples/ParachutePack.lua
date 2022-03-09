@@ -1,4 +1,12 @@
-local c_ent_lib = require "custom_entities"
+meta = {
+    name = "ParachutePack",
+    version = "WIP",
+    author = "Estebanfer",
+    description = ""
+}
+
+local c_ent_lib = import("estebanfer/custom-entities-library")
+--local c_ent_lib = require "custom_entities"
 
 local parachute_texture_id
 do
@@ -15,18 +23,18 @@ end
 local function parachute_back_set(ent)
     ent:set_texture(parachute_texture_id)
     ent.animation_frame = 0
-    set_post_statemachine(ent.uid, function(ent)
-        ent.animation_frame = 0
-    end)
     ent.hitboxy = 0.420
     ent.offsety = -0.01
-    return {}
-end
-
-local function parachute_back_update(ent, c_data, holder)
     ent.color.r = 0.75
     ent.color.g = 0.75
     ent.color.b = 0.75
+end
+
+local function parachute_back_update(ent, _, holder)
+    ent.color.r = 0.75
+    ent.color.g = 0.75
+    ent.color.b = 0.75
+    ent.animation_frame = 0
     if holder and holder.falling_timer > 35 and not holder:has_powerup(ENT_TYPE.ITEM_POWERUP_PARACHUTE) then
         holder:give_powerup(ENT_TYPE.ITEM_POWERUP_PARACHUTE)
     end
@@ -42,7 +50,7 @@ local function parachute_back_p_set(ent)
     return {}
 end
 
-local parachute_back = c_ent_lib.new_custom_backpack(parachute_back_set, parachute_back_update, false)
+local parachute_back = c_ent_lib.new_custom_backpack(parachute_back_set, parachute_back_update, false, c_ent_lib.UPDATE_TYPE.POST_STATEMACHINE)
 local parachute_back_p = c_ent_lib.new_custom_purchasable_back(parachute_back_p_set, function() end, parachute_back, false)
 c_ent_lib.init()
 
