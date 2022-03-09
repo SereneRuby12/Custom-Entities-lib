@@ -1,8 +1,8 @@
 meta = {
     name = "Grapple Gun",
-    version = "WIP",
+    version = "1.0",
     author = "Estebanfer",
-    description = ""
+    description = "Adds a grapple gun to the game. Sprite from The Henry Stickmin Collection"
 }
 
 local celib = import("estebanfer/custom-entities-library")
@@ -231,9 +231,9 @@ local grapple_id = celib.new_custom_gun(grapple_gun_set, grapple_gun_update, gra
 
 celib.add_custom_entity_info(grapple_id, "Grapple gun", grapple_texture_id, 0, 6500, 1000)
 
-celib.add_custom_shop_chance(grapple_id, celib.CHANCE.COMMON, {celib.SHOP_TYPE.SPECIALTY_SHOP, celib.SHOP_TYPE.TUN, celib.SHOP_TYPE.CAVEMAN}, true)
-celib.add_custom_container_chance(grapple_id, celib.CHANCE.COMMON, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT})
-celib.add_custom_entity_crust_chance(grapple_id, 1.0)
+celib.add_custom_shop_chance(grapple_id, celib.CHANCE.LOW, {celib.SHOP_TYPE.SPECIALTY_SHOP, celib.SHOP_TYPE.TUN, celib.SHOP_TYPE.CAVEMAN}, true)
+celib.add_custom_container_chance(grapple_id, celib.CHANCE.LOW, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT})
+celib.add_custom_entity_crust_chance(grapple_id, 0.05)
 celib.define_custom_entity_tilecode(grapple_id, "grapple_gun", true)
 
 celib.init()

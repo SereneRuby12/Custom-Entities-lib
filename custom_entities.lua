@@ -605,7 +605,7 @@ local function update_custom_ent(ent, c_data, c_type)
     c_type.update_callback(ent, c_data)
 end
 
----@alias EntSet fun(ent: userdata, data: table, extra_args: any):table
+---@alias EntSet fun(ent: userdata, data: table, custom_id: integer, extra_args: any):table
 ---@alias EntUpdate fun(ent: userdata, c_data: table):nil
 
 local function _new_custom_entity(set_func, _update_func, update_callback, carry_type, ent_type, update_type)
@@ -639,9 +639,9 @@ end
 ---Create a new custom entity type
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
----@param carry_type integer | nil @Use `CARRY_TYPE`
----@param ent_type integer | nil
----@param update_type integer | nil
+---@param carry_type? integer @Use `CARRY_TYPE`
+---@param ent_type? integer
+---@param update_type? integer
 ---@return integer
 function module.new_custom_entity(set_func, update_func, carry_type, ent_type, update_type)
     local update
@@ -1053,7 +1053,7 @@ end
 ---@param texture_id integer
 ---@param row integer
 ---@param column integer
----@param color userdata | nil
+---@param color? userdata
 ---@return table
 function module.new_item_draw_info(texture_id, row, column, color)
     color = color ~= nil and color or item_hud_color
@@ -1104,7 +1104,7 @@ end
 ---@param texture_id integer
 ---@param row integer
 ---@param column integer
----@param color userdata | nil
+---@param color? userdata
 ---@return integer
 function module.new_custom_powerup(set_func, update_func, texture_id, row, column, color, update_type)
     local item_draw_info = module.new_item_draw_info(texture_id, row, column, color)
@@ -1148,7 +1148,7 @@ end
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
 ---@param pickup_func fun(ent: userdata, player: userdata, c_data: table, has_powerup: boolean) @called when a player picks up the pickup, use `do_pickup_effect` to generate the effect easily
 ---@param custom_powerup_id integer
----@param ent_type integer | nil
+---@param ent_type? integer
 ---@return integer
 function module.new_custom_pickup(set_func, update_func, pickup_func, custom_powerup_id, ent_type, update_type)
     local set = function(ent, c_data, c_type_id, args)
@@ -1387,7 +1387,7 @@ end
 ---@param custom_ent_id integer
 ---@param chance_type any @Use CHANCE.*
 ---@param shop_types integer | integer[]
----@param max_one boolean @Limit the entity to only spawn max one time per shop
+---@param max_one? boolean @Limit the entity to only spawn max one time per shop
 function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types, max_one)
     if not custom_shop_items_set then
         set_custom_shop_spawns()

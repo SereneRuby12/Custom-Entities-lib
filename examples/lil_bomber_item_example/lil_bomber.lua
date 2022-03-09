@@ -9,18 +9,21 @@ local c_ent_lib = import("estebanfer/custom-entities-library")
 --local c_ent_lib = require "custom_entities"
 
 local bomb_spawn_sound = get_sound(VANILLA_SOUND.ENEMIES_OLMEC_BOMB_SPAWN)
-local lil_bomber_texture
+local lil_bomber_texture_id
 do
-    local texture_def = get_texture_definition(TEXTURE.DATA_TEXTURES_ITEMS_0)
-    texture_def.texture_path = 'Lil_bomber.png'
-    lil_bomber_texture = define_texture(texture_def)
+    local lil_bomber_texture_def = TextureDefinition.new()
+    lil_bomber_texture_def.width = 128
+    lil_bomber_texture_def.height = 128
+    lil_bomber_texture_def.tile_width = 128
+    lil_bomber_texture_def.tile_height = 128
+    
+    lil_bomber_texture_def.texture_path = "Lil_bomber.png"
+    lil_bomber_texture_id = define_texture(lil_bomber_texture_def)
 end
-
-local function mycustom_set(ent, data)
-    ent:set_texture(lil_bomber_texture)
+local function mycustom_set(ent)
+    ent:set_texture(lil_bomber_texture_id)
     c_ent_lib.set_price(ent, 12000, 1500)
     add_custom_name(ent.uid, "Lil' Bomber")
-    return {}
 end
 
 local function mycustom_update(ent, data)

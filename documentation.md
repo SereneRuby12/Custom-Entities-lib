@@ -64,7 +64,9 @@ Sets the price of an entity for the level. Use this only in the set function for
 
 ### `add_custom_entity_crust_chance(int custom_id, CHANCE chance)`
 
-Add chance for the custom entity type to spawn in crust (inside floor). The chance is from `0.0` to `1.0` and will only spawn it max one time per level.
+Add chance for the custom entity type to spawn in crust (inside floor). **must have used** `add_custom_entity_info` function so it can use the correct texture.
+
+The chance is from `0.0` to `1.0` and will only spawn it max one time per level.
 
 ### `add_custom_entity_info(int custom_id, string name, int texture_id, int anim_frame, int price, int price_inflation)`
 

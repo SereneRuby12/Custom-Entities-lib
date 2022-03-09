@@ -1,8 +1,8 @@
 meta = {
-    name = "Empress thing pickup",
-    version = "WIP",
+    name = "Spectral Mirror pickup",
+    version = "1.0",
     author = "Estebanfer",
-    description = ""
+    description = "Adds a pickup that allows you to control your ghost without dying. Toggle with DOOR button"
 }
 
 local celib = import("estebanfer/custom-entities-library")
@@ -148,11 +148,8 @@ end
 
 
 local function pickup_set_func(ent)
-    ent:set_texture(mirror_texture_id)
-    ent.animation_frame = 0
+    celib.set_entity_info_from_custom_id(ent, pickup_id)
     ent.hitboxy = 0.27
-    add_custom_name(ent.uid, "Ghost Mirror")
-    celib.set_price(ent, 500, 20)
 end
 
 local function pickup_update_func()
@@ -242,6 +239,9 @@ powerup_id = celib.new_custom_powerup(powerup_set_func, powerup_update_func, mir
 
 pickup_id = celib.new_custom_pickup(pickup_set_func, pickup_update_func, pickup_picked_func, powerup_id, ENT_TYPE.ITEM_PICKUP_COMPASS)
 celib.set_powerup_drop(powerup_id, pickup_id)
+celib.add_custom_entity_info(pickup_id, "Spectral Mirror", mirror_texture_id, 0, 15000, 1500)
+celib.add_custom_entity_crust_chance(pickup_id, 0.025)
+celib.define_custom_entity_tilecode(pickup_id, "spectral_mirror", true)
 
 local purchasable_pickup_id = celib.new_custom_purchasable_pickup(pickup_set_func, pickup_update_func, pickup_id)
 
@@ -251,11 +251,10 @@ celib.add_custom_container_chance(pickup_id, celib.CHANCE.COMMON, ENT_TYPE.ITEM_
 
 celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.LOW, {celib.SHOP_TYPE.CAVEMAN, celib.SHOP_TYPE.TUN}, true) --celib.CHANCE.COMMON, celib.ALL_SHOPS
 
-set_callback(function()
+register_option_button('spectral_mirror_spawn', 'spawn spectral mirror', '', function()
     local x, y, l = get_position(players[1].uid)
     celib.spawn_custom_entity(pickup_id, x, y, l, 0, 0)
-    celib.spawn_custom_entity(pickup_id, x+1, y, l, 0, 0)
-end, ON.START)
+end)
 
 set_callback(function()
     if state.loading == 2 then
