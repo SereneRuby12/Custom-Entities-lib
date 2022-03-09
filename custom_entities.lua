@@ -1,6 +1,6 @@
 meta = {
     name = "Custom-Entities-Library",
-    version = "1.0",
+    version = "1.0a",
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
@@ -315,7 +315,7 @@ end
 
 local is_portal = false
 local function update_customs()
-    is_portal = get_entities_by_type(ENT_TYPE.FX_PORTAL)[1] ~= nil
+    is_portal = get_entities_by(ENT_TYPE.FX_PORTAL, MASK.FX, LAYER.BOTH)[1] ~= nil
     for c_type_id, c_type in ipairs(custom_types) do
         if c_type.update_type == module.UPDATE_TYPE.FRAME then
             for uid, c_data in pairs(c_type.entities) do
@@ -415,7 +415,7 @@ local function set_clonegunshot_custom_ent()
 
     module.add_after_destroy_callback(_clonegunshot_custom_id, function(c_data)
         local overlapping_types = get_types_cloneable(c_data.last_overlapping)
-        for _, uid in ipairs(get_entities_by_type(ENT_TYPE.FX_TELEPORTSHADOW)) do
+        for _, uid in ipairs(get_entities_by(ENT_TYPE.FX_TELEPORTSHADOW, MASK.ITEM, LAYER.BOTH)) do
             if get_entity_type(uid+1) ~= ENT_TYPE.FX_TELEPORTSHADOW then
                 local spawned_uid = uid-1
                 local spawned_ent = get_entity(spawned_uid)
@@ -463,7 +463,7 @@ function module.custom_init(game_frame, not_handle_clonegun)
 
     cb_loading = set_callback(function()
         if ((state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP) or state.screen_next == SCREEN.SPACESHIP) then
-            local is_storage_floor_there = #get_entities_by_type(ENT_TYPE.FLOOR_STORAGE) > 0
+            local is_storage_floor_there = get_entities_by(ENT_TYPE.FLOOR_STORAGE, MASK.FLOOR, LAYER.BOTH)[1] ~= nil
             if state.loading == 2 then
                 local hh_info_cache = {}
                 for c_id,c_type in ipairs(custom_types) do
@@ -578,7 +578,7 @@ end
 
 --update last_holder when there's a portal and the entity isn't entering it
 local function update_custom_held_portal(ent, c_data)
-    if is_portal and ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
+    if is_portal and ent.state ~= 24 and ent.last_state ~= 24 and ent.overlay then --24 seems to be the state when entering portal
         c_data.last_holder = ent.overlay
         c_data.is_worn_backitem = ent.overlay.type.search_flags & MASK.PLAYER == MASK.PLAYER and ent.overlay:worn_backitem() == ent.uid
     end
@@ -980,13 +980,6 @@ end
 ---@param flammable boolean @non-flammable backs might still generate the warning sound for a short time, might crash on OL but not on PL
 ---@return integer
 function module.new_custom_backpack(set_func, update_func, flammable, update_type)
-    --local custom_id = #custom_types + 1
-    --custom_types[custom_id] = {
-    --    update_callback = update_func,
-    --    carry_type = CARRY_TYPE.HELD,
-    --    ent_type = ENT_TYPE.ITEM_JETPACK,
-    --    entities = {}
-    --}
     local set, update
     if flammable then
         set = set_func
@@ -1617,6 +1610,13 @@ function module.define_custom_entity_tilecode(custom_id, tilecode_name, spawn_to
     set_pre_tile_code_callback(function (x, y, layer)
         module.set_custom_entity(spawn_func(custom_types[custom_id].ent_type, x, y, layer), custom_id)
     end, tilecode_name)
+end
+
+function module.unset_custom_entity(uid, custom_id)
+    if custom_types[custom_id].entities[uid] and custom_types[custom_id].entities[uid]._statemachine then
+        clear_entity_callback(uid, custom_types[custom_id].entities[uid]._statemachine)
+    end
+    custom_types[custom_id].entities[uid] = nil
 end
 
 module.custom_types = custom_types --array of custom types
