@@ -45,9 +45,7 @@ end
 
 local function parachute_back_p_set(ent)
     darker_color(ent)
-    ent.animation_frame = 43
-    add_custom_name(ent.uid, "ParachutePack")
-    c_ent_lib.set_price(ent, 5000, 750)
+    c_ent_lib.set_entity_info_from_custom_id(ent, parachute_back)
 end
 
 parachute_back = c_ent_lib.new_custom_backpack(parachute_back_set, parachute_back_update, false, c_ent_lib.UPDATE_TYPE.POST_STATEMACHINE)
