@@ -56,6 +56,9 @@ There are two ways of spawning a custom entity, that are basically the same: usi
 ## Check the documentation page there:
 [Documentation](https://github.com/estebanfer/Custom-Entities-lib/blob/master/documentation.md)
 
+## Check the changelog there:
+[Changelog](https://github.com/estebanfer/Custom-Entities-lib/blob/master/changelog.md)
+
 ## And look for the examples there:
 - [Some random custom entities](examples/example.lua)
 - [Custom gun](examples/Grapple_gun/grapple_gun.lua)
