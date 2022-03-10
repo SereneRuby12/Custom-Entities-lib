@@ -1,8 +1,8 @@
 meta = {
-    name = "Custom Entities Lib example",
+    name = "Testing stuff",
     version = "WIP",
     author = "Estebanfer",
-    description = "Color changing snakes, explsive rocks, and rgb turkeys"
+    description = "Not really an example an pretty outdated"
 }
 
 local c_ent_lib = require "custom_entities"

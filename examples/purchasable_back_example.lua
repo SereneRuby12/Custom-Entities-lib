@@ -26,9 +26,9 @@ local function rainbow_cape_set(ent)
     ent.color.g = 0
     c_ent_lib.set_entity_info_from_custom_id(ent, rainbow_cape)
     return {
-        ["color_n"] = 2,
-        ["vel"] = math.random()/20+0.01,
-        ["up"] = true
+        color_n = 2,
+        vel = math.random()/20+0.01,
+        up = true
     }
 end
 

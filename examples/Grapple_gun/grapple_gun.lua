@@ -82,9 +82,9 @@ end
 
 local function grapple_hook_set(ent, _, _, args) --gun, angle, facing_left, gun_overlay
     local custom_data = {
-        ["attached"] = false,
-        ["chain_draw_id"] = nil,
-        ["gun"] = args[1]
+        attached = false,
+        chain_draw_id = nil,
+        gun = args[1]
     }
     ent.last_owner_uid = args[4]
     ent:set_texture(grapple_texture_id)
@@ -98,8 +98,8 @@ local function grapple_hook_set(ent, _, _, args) --gun, angle, facing_left, gun_
         ent.flags = args[3] and set_flag(ent.flags, ENT_FLAG.FACING_LEFT) or clr_flag(ent.flags, ENT_FLAG.FACING_LEFT)
     end
     chains[#chains+1] = {
-        ["gun_uid"] = args[1],
-        ["hook_uid"] = ent.uid
+        gun_uid = args[1],
+        hook_uid = ent.uid
     }
     custom_data.chain_draw_id = #chains
     local x, y = get_position(ent.uid)
@@ -174,12 +174,12 @@ hook_id = celib.new_custom_entity(grapple_hook_set, grapple_hook_update)
 
 local function grapple_gun_set(ent, _, custom_id)
     local custom_data = {
-        ["shot"] = false,
-        ["attached_uid"] = -1,
-        ["being_shot"] = -1,
-        ["next_joint_timer"] = 10,
-        ["facing_left"] = false,
-        ["angle"] = ent.angle
+        shot = false,
+        attached_uid = -1,
+        being_shot = -1,
+        next_joint_timer = 10,
+        facing_left = false,
+        angle = ent.angle
     }
     celib.set_entity_info_from_custom_id(ent, custom_id)
     return custom_data

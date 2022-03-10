@@ -25,9 +25,9 @@ local function powerup_set_func(ent)
     ent.color.b = 0
     ent.color.g = 0
     return {
-        ["color_n"] = 2,
-        ["vel"] = math.random()/20+0.01,
-        ["up"] = true
+        color_n = 2,
+        vel = math.random()/20+0.01,
+        up = true
     }
 end
 
@@ -50,9 +50,9 @@ local function pickup_set_func(ent)
     ent.color.g = 0
     celib.set_entity_info_from_custom_id(ent, pickup_id)
     return {
-        ["color_n"] = 2,
-        ["vel"] = math.random()/20+0.01,
-        ["up"] = true
+        color_n = 2,
+        vel = math.random()/20+0.01,
+        up = true
     }
 end
 
