@@ -80,6 +80,10 @@ local function get_solids(floors)
     return solids
 end
 
+local function filter_solids(ent)
+    return test_flag(ent.flags, ENT_FLAG.SOLID) 
+end
+
 local function grapple_hook_set(ent, _, _, args) --gun, angle, facing_left, gun_overlay
     local custom_data = {
         attached = false,
@@ -104,13 +108,24 @@ local function grapple_hook_set(ent, _, _, args) --gun, angle, facing_left, gun_
     custom_data.chain_draw_id = #chains
     local x, y = get_position(ent.uid)
     local extrude = 0.175
-    local floors = get_solids(get_entities_overlapping_hitbox(0, MASK.FLOOR | MASK.ACTIVEFLOOR, AABB:new(x-extrude,y+extrude,x+extrude,y-extrude), ent.layer))
+    local floors = filter_entities(get_entities_overlapping_hitbox(0, MASK.FLOOR | MASK.ACTIVEFLOOR, AABB:new(x-extrude,y+extrude,x+extrude,y-extrude), ent.layer), filter_solids)
     if floors[1] then
-        ent.velocityx = 0
-        ent.velocityy = 0
-        custom_data.attached = true
-        attach_entity(floors[1], ent.uid)
-        ent.flags = clr_flag(ent.flags, ENT_FLAG.NO_GRAVITY)
+        ---@type Movable
+        local floor = get_entity(floors[1])
+        if floor.health and floor.health ~= 0 then
+            floor:damage(ent.uid, 1, 0, 0, 0, 0)
+            if floor.type.id ~= ENT_TYPE.ACTIVEFLOOR_BONEBLOCK then
+                ent.velocityx = 0
+                ent.velocityy = 0
+                custom_data.attached = true
+            end
+        else
+            ent.velocityx = 0
+            ent.velocityy = 0
+            custom_data.attached = true
+            attach_entity(floors[1], ent.uid)
+            ent.flags = clr_flag(ent.flags, ENT_FLAG.NO_GRAVITY)
+        end
     end
     return custom_data
 end
@@ -154,15 +169,20 @@ local function grapple_hook_update(ent, c_data)
             end
         end
     else
-        local floors = get_solids(get_entities_overlapping_hitbox(0, MASK.FLOOR | MASK.ACTIVEFLOOR, AABB:new(hook_x-extrude,hook_y+extrude,hook_x+extrude,hook_y-extrude), ent.layer))
+        local floors = filter_entities(get_entities_overlapping_hitbox(0, MASK.FLOOR | MASK.ACTIVEFLOOR, AABB:new(hook_x-extrude,hook_y+extrude,hook_x+extrude,hook_y-extrude), ent.layer), filter_solids)
         if floors[1] then
             local floor_type = get_entity_type(floors[1])
             if floor_type ~= ENT_TYPE.FLOOR_CONVEYORBELT_LEFT and floor_type ~= ENT_TYPE.FLOOR_CONVEYORBELT_RIGHT then
-                ent.velocityx = 0
-                ent.velocityy = 0
-                c_data.attached = true
-                attach_entity(floors[1], ent.uid)
-                ent.flags = clr_flag(ent.flags, ENT_FLAG.NO_GRAVITY)
+                if floor_type == ENT_TYPE.ACTIVEFLOOR_BONEBLOCK or floor_type == ENT_TYPE.ACTIVEFLOOR_POWDERKEG or floor_type == ENT_TYPE.ACTIVEFLOOR_REGENERATINGBLOCK then
+                    get_entity(floors[1]):damage(ent.uid, 1, 0, 0, 0, 0)
+                    kill_entity(ent.uid)
+                else
+                    ent.velocityx = 0
+                    ent.velocityy = 0
+                    c_data.attached = true
+                    attach_entity(floors[1], ent.uid)
+                    ent.flags = clr_flag(ent.flags, ENT_FLAG.NO_GRAVITY)
+                end
             else
                 kill_entity(ent.uid)
             end
