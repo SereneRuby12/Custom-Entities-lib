@@ -34,15 +34,25 @@ end
 local function mycustom_shoot(weapon)
     local x, y, l = get_position(weapon.uid)
     local dir = test_flag(weapon.flags, ENT_FLAG.FACING_LEFT) and -1 or 1
+    ---@type Bomb
     local bomb = get_entity(spawn(ENT_TYPE.ITEM_BOMB, x+0.2*dir, y, l, 0.25*dir, 0.075))
     bomb_spawn_sound:play()
+    local backitem_uid = weapon.overlay:worn_backitem()
+    if backitem_uid ~= -1 then
+        bomb.width = 1.875
+        bomb.height = 1.875
+        bomb.scale_hor = 1.875
+        bomb.scale_ver = 1.875
+        bomb.is_big_bomb = true
+    end
     bomb.last_owner_uid = weapon.overlay.uid
 end
 
 local c_gun = c_ent_lib.new_custom_gun2(mycustom_set, mycustom_update, mycustom_shoot, 60, 0, 0, ENT_TYPE.ITEM_FREEZERAY, true)
 c_ent_lib.add_custom_entity_info(c_gun, "Lil Bomber", lil_bomber_texture_id, 0, 15000, 1500)
 
-c_ent_lib.add_custom_shop_chance(c_gun, c_ent_lib.CHANCE.LOW, {c_ent_lib.SHOP_TYPE.WEAPON_SHOP, c_ent_lib.SHOP_TYPE.SPECIALTY_SHOP, c_ent_lib.SHOP_TYPE.TUN, c_ent_lib.SHOP_TYPE.CAVEMAN}, true)
+c_ent_lib.add_custom_shop_chance(c_gun, c_ent_lib.CHANCE.LOW, {c_ent_lib.SHOP_TYPE.TUN, c_ent_lib.SHOP_TYPE.CAVEMAN}, true)
+c_ent_lib.add_custom_shop_chance(c_gun, c_ent_lib.CHANCE.LOWER, {c_ent_lib.SHOP_TYPE.WEAPON_SHOP, c_ent_lib.SHOP_TYPE.SPECIALTY_SHOP, c_ent_lib.SHOP_TYPE.DICESHOP, c_ent_lib.SHOP_TYPE.TUSKDICESHOP}, true)
 c_ent_lib.add_custom_container_chance(c_gun, c_ent_lib.CHANCE.LOW, {ENT_TYPE.ITEM_GHIST_PRESENT, ENT_TYPE.ITEM_PRESENT})
 c_ent_lib.add_custom_container_chance(c_gun, c_ent_lib.CHANCE.LOWER, ENT_TYPE.ITEM_CRATE)
 

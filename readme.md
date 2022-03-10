@@ -62,7 +62,7 @@ There are two ways of spawning a custom entity, that are basically the same: usi
 ## And look for the examples there:
 - [Some random custom entities](examples/example.lua)
 - [Custom gun](examples/Grapple_gun/grapple_gun.lua)
-- [Custom gun2](examples/lil_bomber_item_example/lil_bomber_custom_gun2.lua)
+- [Custom gun2](examples/lil_bomber_item_example/lil_bomber.lua)
 - [Custom backpack](examples/ParachutePack.lua)
 - [Custom pickup](examples/pickup.lua)
 - [Another custom pickup](examples/pickup2.lua)
