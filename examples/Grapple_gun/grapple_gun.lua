@@ -69,17 +69,6 @@ local function get_co_distance(uid1, uid2)
     return dist, xdist, ydist
 end
 
-local function get_solids(floors)
-    local solids = {}
-    for i, v in ipairs(floors) do
-        local flags = get_entity_flags(v)
-        if test_flag(flags, ENT_FLAG.SOLID) then
-            table.insert(solids, v)
-        end
-    end
-    return solids
-end
-
 local function filter_solids(ent)
     return test_flag(ent.flags, ENT_FLAG.SOLID) 
 end
