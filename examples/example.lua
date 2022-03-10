@@ -5,11 +5,12 @@ meta = {
     description = "Color changing snakes, explsive rocks, and rgb turkeys"
 }
 
-local c_ent_lib = require "custom_entities"
+--local c_ent_lib = import("estebanfer/custom-entities-library")
+local c_ent_lib = require "custom_entities" --You can use require to get autocompletion, and then change it to import when the mod is ready
 
 local function mycustom_set(ent, data)
     ent.color.r = 0.5
-    return {["actualcolor"] = 0.5}
+    return {actualcolor = 0.5}
 end
 
 local function mycustom_update(ent, data)
@@ -23,8 +24,8 @@ end
 local function mycustom_item_set(ent, data)
     ent.color.r, ent.color.g, ent.color.b = 0.5, 0.5, 0.5
     return {
-        ["hit_ground"] = test_flag(ent.flags, ENT_MORE_FLAG.HIT_GROUND),
-        ["hit_wall"] = test_flag(ent.flags, ENT_MORE_FLAG.HIT_WALL)
+        hit_ground = test_flag(ent.flags, ENT_MORE_FLAG.HIT_GROUND),
+        hit_wall = test_flag(ent.flags, ENT_MORE_FLAG.HIT_WALL)
     }
 end
 
@@ -55,9 +56,9 @@ local function custom_mount_set(ent, data)
     ent.color.b = 0
     ent.color.g = 0
     return {
-        ["color_n"] = 2,
-        ["vel"] = math.random()/20+0.01,
-        ["up"] = true
+        color_n = 2,
+        vel = math.random()/20+0.01,
+        up = true
     }
 end
 

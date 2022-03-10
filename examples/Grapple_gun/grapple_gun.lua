@@ -1,4 +1,12 @@
-local celib = require "custom_entities"
+meta = {
+    name = "Grapple Gun",
+    version = "1.0",
+    author = "Estebanfer",
+    description = "Adds a grapple gun to the game. Sprite from The Henry Stickmin Collection"
+}
+
+local celib = import("estebanfer/custom-entities-library")
+--local celib = require "custom_entities"
 
 local grapple_texture_id
 do
@@ -17,14 +25,21 @@ local DOWN_DIR = 12 -- 2048
 
 local chains = {}
 local level_xsize, level_ysize
+local hook_id
 
 local function lerp(a, b, t)
     return a + (b - a) * t
 end
 
-local function arr_unordered_remove(arr, pos)
+local function remove_chain(arr, pos)
     arr[pos] = arr[#arr]
     arr[#arr] = nil
+    if arr[pos] then
+        local hook_c_data = celib.get_custom_entity(arr[pos].hook_uid, hook_id)
+        if hook_c_data then
+            hook_c_data.chain_draw_id = pos
+        end
+    end
 end
 
 local function get_co_distances(x1, y1, x2, y2)
@@ -65,11 +80,15 @@ local function get_solids(floors)
     return solids
 end
 
-local function grapple_hook_set(ent, _, args) --gun, angle, facing_left, gun_overlay
+local function filter_solids(ent)
+    return test_flag(ent.flags, ENT_FLAG.SOLID) 
+end
+
+local function grapple_hook_set(ent, _, _, args) --gun, angle, facing_left, gun_overlay
     local custom_data = {
-        ["attached"] = false,
-        ["chain_draw_id"] = nil,
-        ["gun"] = args[1]
+        attached = false,
+        chain_draw_id = nil,
+        gun = args[1]
     }
     ent.last_owner_uid = args[4]
     ent:set_texture(grapple_texture_id)
@@ -83,36 +102,51 @@ local function grapple_hook_set(ent, _, args) --gun, angle, facing_left, gun_ove
         ent.flags = args[3] and set_flag(ent.flags, ENT_FLAG.FACING_LEFT) or clr_flag(ent.flags, ENT_FLAG.FACING_LEFT)
     end
     chains[#chains+1] = {
-        ["gun_uid"] = args[1],
-        ["hook_uid"] = ent.uid
+        gun_uid = args[1],
+        hook_uid = ent.uid
     }
     custom_data.chain_draw_id = #chains
     local x, y = get_position(ent.uid)
     local extrude = 0.175
-    local floors = get_solids(get_entities_overlapping_hitbox(0, MASK.FLOOR | MASK.ACTIVEFLOOR, AABB:new(x-extrude,y+extrude,x+extrude,y-extrude), ent.layer))
+    local floors = filter_entities(get_entities_overlapping_hitbox(0, MASK.FLOOR | MASK.ACTIVEFLOOR, AABB:new(x-extrude,y+extrude,x+extrude,y-extrude), ent.layer), filter_solids)
     if floors[1] then
-        --messpect('floor')
-        ent.velocityx = 0
-        ent.velocityy = 0
-        custom_data.attached = true
-        attach_entity(floors[1], ent.uid)
-        ent.flags = clr_flag(ent.flags, ENT_FLAG.NO_GRAVITY)
+        ---@type Movable
+        local floor = get_entity(floors[1])
+        if floor.health and floor.health ~= 0 then
+            floor:damage(ent.uid, 1, 0, 0, 0, 0)
+            if floor.type.id ~= ENT_TYPE.ACTIVEFLOOR_BONEBLOCK then
+                ent.velocityx = 0
+                ent.velocityy = 0
+                custom_data.attached = true
+            end
+        else
+            ent.velocityx = 0
+            ent.velocityy = 0
+            custom_data.attached = true
+            attach_entity(floors[1], ent.uid)
+            ent.flags = clr_flag(ent.flags, ENT_FLAG.NO_GRAVITY)
+        end
     end
     return custom_data
 end
 
 local function grapple_hook_update(ent, c_data)
-    local hook_x, hook_y, l = get_position(ent.uid)
+    local hook_x, hook_y = get_position(ent.uid)
     
     local g_gun_uid = c_data.gun
     local g_gun = get_entity(g_gun_uid)
     
-    if c_data.attached and g_gun and g_gun.overlay then
+    if not g_gun then
+        kill_entity(ent.uid)
+        return
+    end
+    if c_data.attached and g_gun.overlay and g_gun.overlay.type.search_flags ~= MASK.ACTIVEFLOOR then
         local gun_x, gun_y = get_position(g_gun.overlay.uid)
         local dist, xdist, ydist = get_co_distances(gun_x, gun_y, hook_x, hook_y)
         if dist > 1 then
             --local xdist, ydist = hook_x - gun_x, hook_y - gun_y
-            if c_data.gun and g_gun.overlay and not (g_gun.overlay.overlay and g_gun.overlay.overlay.type.id == ENT_TYPE.FLOOR_PIPE) then
+            if not (g_gun.overlay.overlay and g_gun.overlay.overlay.type.id == ENT_TYPE.FLOOR_PIPE) then
+                ---@type Movable
                 local topmost = g_gun.overlay:topmost_mount()
                 topmost.velocityx = topmost.velocityx + ((math.abs(xdist) > 1.5 or math.abs(xdist) < 0.2) and xdist*0.01 or (xdist > 0 and 0.02 or -0.02))
                 topmost.velocityy = topmost.velocityy + ydist*0.01
@@ -135,15 +169,20 @@ local function grapple_hook_update(ent, c_data)
             end
         end
     else
-        local floors = get_solids(get_entities_overlapping_hitbox(0, MASK.FLOOR | MASK.ACTIVEFLOOR, AABB:new(hook_x-extrude,hook_y+extrude,hook_x+extrude,hook_y-extrude), ent.layer))
+        local floors = filter_entities(get_entities_overlapping_hitbox(0, MASK.FLOOR | MASK.ACTIVEFLOOR, AABB:new(hook_x-extrude,hook_y+extrude,hook_x+extrude,hook_y-extrude), ent.layer), filter_solids)
         if floors[1] then
             local floor_type = get_entity_type(floors[1])
             if floor_type ~= ENT_TYPE.FLOOR_CONVEYORBELT_LEFT and floor_type ~= ENT_TYPE.FLOOR_CONVEYORBELT_RIGHT then
-                ent.velocityx = 0
-                ent.velocityy = 0
-                c_data.attached = true
-                attach_entity(floors[1], ent.uid)
-                ent.flags = clr_flag(ent.flags, ENT_FLAG.NO_GRAVITY)
+                if floor_type == ENT_TYPE.ACTIVEFLOOR_BONEBLOCK or floor_type == ENT_TYPE.ACTIVEFLOOR_POWDERKEG or floor_type == ENT_TYPE.ACTIVEFLOOR_REGENERATINGBLOCK then
+                    get_entity(floors[1]):damage(ent.uid, 1, 0, 0, 0, 0)
+                    kill_entity(ent.uid)
+                else
+                    ent.velocityx = 0
+                    ent.velocityy = 0
+                    c_data.attached = true
+                    attach_entity(floors[1], ent.uid)
+                    ent.flags = clr_flag(ent.flags, ENT_FLAG.NO_GRAVITY)
+                end
             else
                 kill_entity(ent.uid)
             end
@@ -151,31 +190,18 @@ local function grapple_hook_update(ent, c_data)
     end
 end
 
-local hook_id = celib.new_custom_entity(grapple_hook_set, grapple_hook_update)
+hook_id = celib.new_custom_entity(grapple_hook_set, grapple_hook_update)
 
-local function grapple_hook_destroy(c_data)
-    if c_data.chain_draw_id then
-        arr_unordered_remove(chains, c_data.chain_draw_id)
-        --chains[c_data.chain_draw_id] = chains[#chains]
-        --chains[#chains] = nil
-    end
-end
-
-celib.add_after_destroy_callback(hook_id, grapple_hook_destroy)
-
-local function grapple_gun_set(ent, c_data)
+local function grapple_gun_set(ent, _, custom_id)
     local custom_data = {
-        ["shot"] = false,
-        ["attached_uid"] = -1,
-        ["being_shot"] = -1,
-        ["next_joint_timer"] = 10,
-        ["facing_left"] = false,
-        ["angle"] = ent.angle
+        shot = false,
+        attached_uid = -1,
+        being_shot = -1,
+        next_joint_timer = 10,
+        facing_left = false,
+        angle = ent.angle
     }
-    ent:set_texture(grapple_texture_id)
-    ent.animation_frame = 0
-    add_custom_name(ent.uid, "Grapple gun")
-    celib.set_price(ent, 6500, 1000)
+    celib.set_entity_info_from_custom_id(ent, custom_id)
     return custom_data
 end
 
@@ -206,7 +232,6 @@ local function grapple_gun_shoot(ent, c_data)
         ent.animation_frame = 0
         c_data.shot = false
         kill_entity(c_data.attached_uid)
-        grapple_hook_destroy(celib.get_custom_entity(c_data.attached_uid, hook_id))
         c_data.attached_uid = nil
     else
         ent.animation_frame = 1
@@ -224,17 +249,28 @@ end
 
 local grapple_id = celib.new_custom_gun(grapple_gun_set, grapple_gun_update, grapple_gun_shoot, 4, 0.05, 0.025, ENT_TYPE.ITEM_CLONEGUN)
 
-celib.add_custom_shop_chance(grapple_id, celib.CHANCE.COMMON, {celib.SHOP_TYPE.SPECIALTY_SHOP, celib.SHOP_TYPE.TUN, celib.SHOP_TYPE.CAVEMAN}, true)
-celib.add_custom_container_chance(grapple_id, celib.CHANCE.COMMON, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT})
+celib.add_custom_entity_info(grapple_id, "Grapple gun", grapple_texture_id, 0, 6500, 1000)
+
+celib.add_custom_shop_chance(grapple_id, celib.CHANCE.LOW, {celib.SHOP_TYPE.SPECIALTY_SHOP, celib.SHOP_TYPE.TUN, celib.SHOP_TYPE.CAVEMAN}, true)
+celib.add_custom_container_chance(grapple_id, celib.CHANCE.LOW, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT})
+celib.add_custom_entity_crust_chance(grapple_id, 0.05)
+celib.define_custom_entity_tilecode(grapple_id, "grapple_gun", true)
 
 celib.init()
 
 local white = Color:white()
 set_callback(function(render_ctx, draw_depth)
     if draw_depth == 30 then
-        for _, v in ipairs(chains) do
+        for chain_i, v in ipairs(chains) do
             local hook_x, hook_y = get_render_position(v.hook_uid)
             local gun_x, gun_y = get_render_position(v.gun_uid)
+            if hook_x == 0 or gun_x == 0 then 
+                remove_chain(chains, chain_i)
+                v = chains[chain_i]
+                if not v then return end
+                hook_x, hook_y = get_render_position(v.hook_uid)
+                gun_x, gun_y = get_render_position(v.gun_uid)
+            end
             local dist, xdiff, ydiff, loop_x, loop_y = get_co_distances(hook_x, hook_y, gun_x, gun_y)
             dist = dist*4
             --local xdiff, ydiff = gun_x - hook_x, gun_y - hook_y
@@ -264,6 +300,7 @@ end, ON.RENDER_PRE_DRAW_DEPTH)
 set_callback(function()
     local x1, y1, x2, y2 = get_bounds()
     level_xsize, level_ysize = x2-x1, y1-y2
+    chains = {}
 end, ON.POST_ROOM_GENERATION)
 
 register_option_button('grapple_spawn', 'spawn grapple', '', function()

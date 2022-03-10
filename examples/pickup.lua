@@ -1,4 +1,12 @@
-local celib = require "custom_entities"
+meta = {
+    name = "Rainbower",
+    version = "1.0",
+    author = "Estebanfer",
+    description = "Example custom pickup that makes you rainbow"
+}
+
+local celib = import("estebanfer/custom-entities-library")
+--local celib = require "custom_entities"
 
 local colors = {'r', 'g', 'b'}
 
@@ -11,13 +19,15 @@ local function number_to_range(num, min, max)
     return num
 end
 
+local pickup_id
+
 local function powerup_set_func(ent)
     ent.color.b = 0
     ent.color.g = 0
     return {
-        ["color_n"] = 2,
-        ["vel"] = math.random()/20+0.01,
-        ["up"] = true
+        color_n = 2,
+        vel = math.random()/20+0.01,
+        up = true
     }
 end
 
@@ -38,14 +48,11 @@ end
 local function pickup_set_func(ent)
     ent.color.b = 0
     ent.color.g = 0
-    ent:set_texture(TEXTURE.DATA_TEXTURES_FX_SMALL3_0)
-    ent.animation_frame = 8
-    add_custom_name(ent.uid, "Rainbower")
-    celib.set_price(ent, 500, 20)
+    celib.set_entity_info_from_custom_id(ent, pickup_id)
     return {
-        ["color_n"] = 2,
-        ["vel"] = math.random()/20+0.01,
-        ["up"] = true
+        color_n = 2,
+        vel = math.random()/20+0.01,
+        up = true
     }
 end
 
@@ -69,7 +76,8 @@ end
 
 local powerup_id = celib.new_custom_powerup(powerup_set_func, powerup_update_func, TEXTURE.DATA_TEXTURES_FX_SMALL3_0, 1, 0)
 
-local pickup_id = celib.new_custom_pickup(pickup_set_func, pickup_update_func, pickup_picked_func, powerup_id, ENT_TYPE.ITEM_PICKUP_COMPASS)
+pickup_id = celib.new_custom_pickup(pickup_set_func, pickup_update_func, pickup_picked_func, powerup_id, ENT_TYPE.ITEM_PICKUP_COMPASS)
+celib.add_custom_entity_info(pickup_id, "Rainbower", TEXTURE.DATA_TEXTURES_FX_SMALL3_0, 8, 1500, 500)
 celib.set_powerup_drop(pickup_id)
 
 local purchasable_pickup_id = celib.new_custom_purchasable_pickup(pickup_set_func, pickup_update_func, pickup_id)

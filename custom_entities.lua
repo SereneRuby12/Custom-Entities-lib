@@ -1,6 +1,6 @@
 meta = {
     name = "Custom-Entities-Library",
-    version = "0.9.1a",
+    version = "1.0a",
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
@@ -41,6 +41,25 @@ local FLAGS_BIT = { --https://github.com/Mr-Auto/spelunky2-lua-libs/blob/main/li
 0x80000000,
 }
 local module = {}
+
+---@class CustomEntityType
+---@field set fun(ent: Entity, c_data: table, args: any): table | nil
+---@field update_callback fun(ent: Entity, c_data: table): nil
+---@field update fun(ent: Entity, c_data: table, c_type: table, c_type_id: integer): nil
+---@field carry_type integer
+---@field ent_type ENT_TYPE
+---@field update_type integer
+---@field entities table
+---@field after_destroy_callback nil | function
+---@field custom_powerup_id nil | integer
+---@field pickup_callback nil | function
+---@field entity_name nil | string
+---@field texture_id nil | integer
+---@field anim_frame nil | integer
+---@field price nil | integer
+---@field price_inflation nil | integer
+
+---@type CustomEntityType[]
 local custom_types = {}
 
 local cb_update, cb_loading, cb_transition, cb_pre_level_gen, cb_post_level_gen, cb_clonegunshot = -1, -1, -1, -1, -1, -1
@@ -110,7 +129,7 @@ local function clone_chances(tabl)
 end
 
 local all_shop_ents = {ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_SKELETON_KEY, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_METAL_SHIELD, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_PICKUP_HEDJET, ENT_TYPE.ITEM_PICKUP_ROYALJELLY, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_WOODEN_ARROW, ENT_TYPE.ITEM_PICKUP_COOKEDTURKEY, ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_PLASMACANNON, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CROSSBOW}
-local normal_shop_rooms = {ROOM_TEMPLATE.SHOP, ROOM_TEMPLATE.SHOP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_UP, ROOM_TEMPLATE.SHOP_ENTRANCE_UP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN_LEFT}
+local normal_shop_rooms = {ROOM_TEMPLATE.SHOP, ROOM_TEMPLATE.SHOP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_UP, ROOM_TEMPLATE.SHOP_ENTRANCE_UP_LEFT, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN, ROOM_TEMPLATE.SHOP_ENTRANCE_DOWN_LEFT, ROOM_TEMPLATE.CURIOSHOP, ROOM_TEMPLATE.CURIOSHOP_LEFT, ROOM_TEMPLATE.CAVEMANSHOP, ROOM_TEMPLATE.CAVEMANSHOP_LEFT, ROOM_TEMPLATE.GHISTSHOP_BACKLAYER}
 local DICESHOP_ITEMS = {ENT_TYPE.ITEM_PICKUP_BOMBBAG, ENT_TYPE.ITEM_PICKUP_BOMBBOX, ENT_TYPE.ITEM_PICKUP_ROPEPILE, ENT_TYPE.ITEM_PICKUP_COMPASS, ENT_TYPE.ITEM_PICKUP_PASTE, ENT_TYPE.ITEM_PICKUP_PARACHUTE, ENT_TYPE.ITEM_PURCHASABLE_CAPE, ENT_TYPE.ITEM_PICKUP_SPECTACLES, ENT_TYPE.ITEM_PICKUP_CLIMBINGGLOVES, ENT_TYPE.ITEM_PICKUP_PITCHERSMITT, ENT_TYPE.ITEM_PICKUP_SPIKESHOES, ENT_TYPE.ITEM_PICKUP_SPRINGSHOES, ENT_TYPE.ITEM_MACHETE, ENT_TYPE.ITEM_BOOMERANG, ENT_TYPE.ITEM_CROSSBOW, ENT_TYPE.ITEM_SHOTGUN, ENT_TYPE.ITEM_FREEZERAY, ENT_TYPE.ITEM_WEBGUN, ENT_TYPE.ITEM_CAMERA, ENT_TYPE.ITEM_MATTOCK, ENT_TYPE.ITEM_PURCHASABLE_JETPACK, ENT_TYPE.ITEM_PURCHASABLE_HOVERPACK, ENT_TYPE.ITEM_TELEPORTER, ENT_TYPE.ITEM_PURCHASABLE_TELEPORTER_BACKPACK, ENT_TYPE.ITEM_PURCHASABLE_POWERPACK}
 
 local function new_chances()
@@ -120,9 +139,10 @@ local function new_chances()
         lower = {}
     }
 end
-local custom_types_shop = {new_chances(), new_chances(), new_chances(), new_chances(), new_chances(), new_chances(), [0] = new_chances(), [13] = new_chances()} --SHOP_TYPE
-local custom_types_tun_shop = new_chances()
-local custom_types_caveman_shop = new_chances()
+local custom_types_shop = {} --SHOP_TYPE
+for i = 0, 13 do
+    custom_types_shop[i] = new_chances()
+end
 local custom_types_diceshop = new_chances()
 local custom_types_tuskdiceshop = new_chances()
 local custom_shop_items_set = false --if the set_pre_entity_spawn for custom shop items was already set
@@ -140,8 +160,10 @@ module.ALL_CONTAINERS = {
     ENT_TYPE.ITEM_GHIST_PRESENT
 }
 local custom_container_items_set = false
+local custom_container_item_spawns_set = false
 local nonflammable_backs_callbacks_set = false
 local item_draw_callbacks_set = false
+local entity_crust_callbacks_set = false
 local clonegunshot_custom_id = -1
 
 local just_burnt, last_burn = 0, 0 --for non_flammable backpacks
@@ -160,13 +182,17 @@ local SHOP_ROOM_TYPES = {
     SPECIALTY_SHOP = 3,
     HIRED_HAND_SHOP = 4,
     PET_SHOP = 5,
+    HEDJET_SHOP = 8,
+    TUN = 9,
+    CAVEMAN = 10,
+    TURKEY_SHOP = 11,
+    GHIST_SHOP = 12,
     DICESHOP = ROOM_TEMPLATE.DICESHOP, --75
     TUSKDICESHOP = ROOM_TEMPLATE.TUSKDICESHOP,
-    TUN = ROOM_TEMPLATE.CURIOSHOP, --77
-    CAVEMAN = ROOM_TEMPLATE.CAVEMANSHOP --79
 }
 
-module.ALL_SHOPS = {SHOP_ROOM_TYPES.GENERAL_STORE, SHOP_ROOM_TYPES.CLOTHING_SHOP, SHOP_ROOM_TYPES.WEAPON_SHOP, SHOP_ROOM_TYPES.SPECIALTY_SHOP, SHOP_ROOM_TYPES.HIRED_HAND_SHOP, SHOP_ROOM_TYPES.PET_SHOP, SHOP_ROOM_TYPES.DICESHOP, SHOP_ROOM_TYPES.TUSKDICESHOP, SHOP_ROOM_TYPES.TUN, SHOP_ROOM_TYPES.CAVEMAN}
+---All common shops (not shops like ghist or hedjet shop)
+module.ALL_SHOPS = {SHOP_ROOM_TYPES.GENERAL_STORE, SHOP_ROOM_TYPES.CLOTHING_SHOP, SHOP_ROOM_TYPES.WEAPON_SHOP, SHOP_ROOM_TYPES.SPECIALTY_SHOP, SHOP_ROOM_TYPES.HIRED_HAND_SHOP, SHOP_ROOM_TYPES.PET_SHOP, SHOP_ROOM_TYPES.DICESHOP, SHOP_ROOM_TYPES.TUSKDICESHOP, SHOP_ROOM_TYPES.TUN, SHOP_ROOM_TYPES.CAVEMAN, SHOP_ROOM_TYPES.TURKEY_SHOP}
 
 local weapon_info = {
     [ENT_TYPE.ITEM_SHOTGUN] = {
@@ -203,8 +229,33 @@ local weapon_info = {
     },
 }
 
-local function set_custom_entity(uid, ent, custom_type_id, c_data, optional_args)
-    custom_types[custom_type_id].entities[uid] = custom_types[custom_type_id].set(ent, c_data, optional_args)
+module.UPDATE_TYPE = {
+    FRAME = 0,
+    POST_STATEMACHINE = 1,
+    PRE_STATEMACHINE = 2
+}
+
+local function _set_custom_entity(uid, ent, custom_type_id, c_data, optional_args)
+    local custom_type = custom_types[custom_type_id]
+    c_data = custom_type.set(ent, c_data, custom_type_id, optional_args)
+    if not c_data then
+        c_data = {}
+    end
+    if custom_type.update_type ~= module.UPDATE_TYPE.FRAME then
+        if custom_type.update_type == module.UPDATE_TYPE.POST_STATEMACHINE then
+            c_data._statemachine = set_post_statemachine(uid, custom_type.update)
+        else
+            c_data._statemachine = set_pre_statemachine(uid, custom_type.update)
+        end
+        set_on_kill(uid, function()
+            custom_type.entities[uid] = nil
+            clear_entity_callback(uid, c_data._statemachine)
+            if custom_type.after_destroy_callback then
+                custom_type.after_destroy_callback(c_data, uid)
+            end
+        end)
+    end
+    custom_type.entities[uid] = c_data
 end
 
 local function set_transition_info(c_type_id, data, slot, carry_type)
@@ -262,18 +313,21 @@ local function set_transition_info_storage(c_type_id, data, e_type)
     end
 end
 
+local is_portal = false
 local function update_customs()
-    local is_portal = #get_entities_by_type(ENT_TYPE.FX_PORTAL) > 0
+    is_portal = get_entities_by(ENT_TYPE.FX_PORTAL, MASK.FX, LAYER.BOTH)[1] ~= nil
     for c_type_id, c_type in ipairs(custom_types) do
-        for uid, c_data in pairs(c_type.entities) do
-            local ent = get_entity(uid)
-            if ent then
-                c_type.update(ent, c_data, c_type, is_portal, c_type_id)
-            else
-                if c_type.after_destroy_callback then
-                    c_type.after_destroy_callback(c_data)
+        if c_type.update_type == module.UPDATE_TYPE.FRAME then
+            for uid, c_data in pairs(c_type.entities) do
+                local ent = get_entity(uid)
+                if ent then
+                    c_type.update(ent, c_data, c_type, c_type_id)
+                else
+                    if c_type.after_destroy_callback then
+                        c_type.after_destroy_callback(c_data)
+                    end
+                    c_type.entities[uid] = nil
                 end
-                c_type.entities[uid] = nil
             end
         end
     end
@@ -285,7 +339,7 @@ local function set_custom_items_waddler(items_zone, layer)
         local ent = get_entity(uid)
         local custom_t_info = custom_entities_t_info_storage[ent.type.id]
         if custom_t_info and custom_t_info[1] then
-            set_custom_entity(uid, ent, custom_t_info[1].custom_type_id, custom_t_info[1].data)
+            _set_custom_entity(uid, ent, custom_t_info[1].custom_type_id, custom_t_info[1].data)
             table.remove(custom_entities_t_info_storage[ent.type.id], 1)
         end
     end
@@ -305,7 +359,7 @@ local function set_custom_ents_from_previous(companions)
                 elseif info.carry_type == CARRY_TYPE.POWERUP then
                     custom_ent = p
                 end
-                set_custom_entity(custom_ent.uid, custom_ent, info.custom_type_id, info.data)
+                _set_custom_entity(custom_ent.uid, custom_ent, info.custom_type_id, info.data)
                 break
             end
         end
@@ -318,7 +372,7 @@ local function set_custom_ents_from_previous(companions)
             if ent.type.id == info.e_type and hh_num == info.hh_num and player_slot == info.leader_player_slot then
                 local custom_ent = ent:get_held_entity()
                 if custom_ent then
-                    set_custom_entity(custom_ent.uid, custom_ent, info.custom_type_id, info.data)
+                    _set_custom_entity(custom_ent.uid, custom_ent, info.custom_type_id, info.data)
                     break
                 end
             end
@@ -361,7 +415,7 @@ local function set_clonegunshot_custom_ent()
 
     module.add_after_destroy_callback(_clonegunshot_custom_id, function(c_data)
         local overlapping_types = get_types_cloneable(c_data.last_overlapping)
-        for _, uid in ipairs(get_entities_by_type(ENT_TYPE.FX_TELEPORTSHADOW)) do
+        for _, uid in ipairs(get_entities_by(ENT_TYPE.FX_TELEPORTSHADOW, MASK.ITEM, LAYER.BOTH)) do
             if get_entity_type(uid+1) ~= ENT_TYPE.FX_TELEPORTSHADOW then
                 local spawned_uid = uid-1
                 local spawned_ent = get_entity(spawned_uid)
@@ -374,7 +428,7 @@ local function set_clonegunshot_custom_ent()
                 if cloned_uid then
                     for id, c_type in ipairs(custom_types) do
                         if c_type.entities[cloned_uid] and c_type.carry_type ~= CARRY_TYPE.POWERUP then
-                            set_custom_entity(spawned_uid, spawned_ent, id, module.get_custom_entity(cloned_uid, id))
+                            _set_custom_entity(spawned_uid, spawned_ent, id, module.get_custom_entity(cloned_uid, id))
                         end
                     end
                 end
@@ -408,8 +462,8 @@ function module.custom_init(game_frame, not_handle_clonegun)
     end
 
     cb_loading = set_callback(function()
-        local is_storage_floor_there = #get_entities_by_type(ENT_TYPE.FLOOR_STORAGE) > 0
         if ((state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP) or state.screen_next == SCREEN.SPACESHIP) then
+            local is_storage_floor_there = get_entities_by(ENT_TYPE.FLOOR_STORAGE, MASK.FLOOR, LAYER.BOTH)[1] ~= nil
             if state.loading == 2 then
                 local hh_info_cache = {}
                 for c_id,c_type in ipairs(custom_types) do
@@ -424,7 +478,7 @@ function module.custom_init(game_frame, not_handle_clonegun)
                                 holder = ent.overlay
                             end
                             if holder and holder.type.search_flags & MASK.PLAYER == MASK.PLAYER then
-                                if holder:worn_backitem() == uid then
+                                if c_data.is_worn_backitem or holder:worn_backitem() == uid then
                                     set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.BACK)
                                 elseif holder.inventory.player_slot == -1 then
                                     set_transition_info_hh(c_id, c_data, holder.type.id, holder.uid, hh_info_cache)
@@ -523,60 +577,99 @@ function module.stop()
 end
 
 --update last_holder when there's a portal and the entity isn't entering it
-local function update_custom_held_portal(ent, c_data, is_portal)
-    if is_portal and ent.state ~= 24 and ent.last_state ~= 24 then --24 seems to be the state when entering portal
+local function update_custom_held_portal(ent, c_data)
+    if is_portal and ent.state ~= 24 and ent.last_state ~= 24 and ent.overlay then --24 seems to be the state when entering portal
         c_data.last_holder = ent.overlay
+        c_data.is_worn_backitem = ent.overlay.type.search_flags & MASK.PLAYER == MASK.PLAYER and ent.overlay:worn_backitem() == ent.uid
     end
 end
 
-local function update_custom_mount_portal(ent, c_data, is_portal)
+local function update_custom_mount_portal(ent, c_data)
     if is_portal and ent.state ~= 24 and ent.last_state ~= 24 then
         c_data.last_holder = ent.overlay
         c_data.last_rider_uid = ent.rider_uid
     end
 end
 
-local function update_custom_held(ent, c_data, c_type, is_portal)
+local function update_custom_held(ent, c_data, c_type)
     c_type.update_callback(ent, c_data)
-    update_custom_held_portal(ent, c_data, is_portal)
+    update_custom_held_portal(ent, c_data)
 end
 
-local function update_custom_mount(ent, c_data, c_type, is_portal)
+local function update_custom_mount(ent, c_data, c_type)
     c_type.update_callback(ent, c_data)
-    update_custom_mount_portal(ent, c_data, is_portal)
+    update_custom_mount_portal(ent, c_data)
 end
 
-local function update_custom_ent(ent, c_data, c_type, _)
+local function update_custom_ent(ent, c_data, c_type)
     c_type.update_callback(ent, c_data)
 end
 
----@alias EntSet fun(ent: userdata, data: table, extra_args: any):table
+---@alias EntSet fun(ent: userdata, data: table, custom_id: integer, extra_args: any):table
 ---@alias EntUpdate fun(ent: userdata, c_data: table):nil
+
+local function _new_custom_entity(set_func, _update_func, update_callback, carry_type, ent_type, update_type)
+    if update_type == nil then
+        update_type = module.UPDATE_TYPE.FRAME
+    end
+
+    local custom_id = #custom_types + 1
+    local update_func
+    if update_type == module.UPDATE_TYPE.FRAME then
+        update_func = _update_func
+    else --is post or pre statemachine
+        update_func = function(entity)
+            local custom_type = custom_types[custom_id]
+            local c_data = custom_type.entities[entity.uid]
+            _update_func(entity, c_data, custom_type)
+        end
+    end
+    custom_types[custom_id] = {
+        set = set_func,
+        update_callback = update_callback,
+        update = update_func,
+        carry_type = carry_type,
+        ent_type = ent_type,
+        update_type = update_type,
+        entities = {}
+    }
+    return custom_id, custom_types[custom_id]
+end
 
 ---Create a new custom entity type
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
----@param carry_type integer | nil @Use `CARRY_TYPE`
----@param ent_type integer | nil
+---@param carry_type? integer @Use `CARRY_TYPE`
+---@param ent_type? integer
+---@param update_type? integer
 ---@return integer
-function module.new_custom_entity(set_func, update_func, carry_type, ent_type)
-    local custom_id = #custom_types + 1
-    custom_types[custom_id] = {
-        set = set_func,
-        update_callback = update_func,
-        carry_type = carry_type,
-        ent_type = ent_type,
-        entities = {}
-    }
-
+function module.new_custom_entity(set_func, update_func, carry_type, ent_type, update_type)
+    local update
     if carry_type == CARRY_TYPE.HELD then
-        custom_types[custom_id].update = update_custom_held
+        update = update_custom_held
     elseif carry_type == CARRY_TYPE.MOUNT then
-        custom_types[custom_id].update = update_custom_mount
+        update = update_custom_mount
     else
-        custom_types[custom_id].update = update_custom_ent
+        update = update_custom_ent
     end
-    return custom_id
+    return _new_custom_entity(set_func, update, update_func, carry_type, ent_type, update_type)
+end
+
+
+local function custom_gun_update(ent, c_data, c_type)
+    ent.cooldown = math.max(ent.cooldown, 2)
+    local holder = ent.overlay
+    if holder and holder.type.search_flags == MASK.PLAYER then --Other entities that can hold guns will never shoot when cooldown isn't zero, so only players, also to prevent activefloors
+        if holder:is_button_pressed(BUTTON.WHIP) and ent.cooldown == 2 and holder.state ~= CHAR_STATE.DUCKING and holder.animation_frame ~= 18 then
+            ent.cooldown = c_type.cooldown+2
+            local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
+            holder.velocityx = holder.velocityx + c_type.recoil_x*recoil_dir
+            holder.velocityy = holder.velocityy + c_type.recoil_y
+            c_type.shoot(ent, c_data)
+        end
+    end
+    c_type.update_callback(ent, c_data)
+    update_custom_held_portal(ent, c_data)
 end
 
 ---Create a new custom entity type that is a gun
@@ -588,36 +681,21 @@ end
 ---@param recoil_y number
 ---@param ent_type integer
 ---@return integer
-function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil_x, recoil_y, ent_type)
-    local custom_id = #custom_types + 1
-    custom_types[custom_id] = {
-        set = set_func,
-        update_callback = update_func,
-        carry_type = CARRY_TYPE.HELD,
-        ent_type = ent_type,
-        shoot = firefunc,
-        cooldown = cooldown,
-        recoil_x = recoil_x,
-        recoil_y = recoil_y,
-        entities = {}
-    }
-    custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
-        ent.cooldown = math.max(ent.cooldown, 2)
-        local holder = ent.overlay
-        if holder and holder.type.search_flags == MASK.PLAYER then --Other entities that can hold guns will never shoot when cooldown isn't zero, so only players, also to prevent activefloors
-            if holder:is_button_pressed(BUTTON.WHIP) and ent.cooldown == 2 and holder.state ~= CHAR_STATE.DUCKING and holder.animation_frame ~= 18 then
-                ent.cooldown = c_type.cooldown+2
-                local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
-                holder.velocityx = holder.velocityx + c_type.recoil_x*recoil_dir
-                holder.velocityy = holder.velocityy + c_type.recoil_y
-                c_type.shoot(ent, c_data)
-            end
-        end
-        c_type.update_callback(ent, c_data)
-        update_custom_held_portal(ent, c_data, is_portal)
-    end
+function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil_x, recoil_y, ent_type, update_type)
+    local custom_id, custom_type = _new_custom_entity(set_func, custom_gun_update, update_func, CARRY_TYPE.HELD, ent_type, update_type)
+    custom_type.shoot = firefunc
+    custom_type.cooldown = cooldown
+    custom_type.recoil_x = recoil_x
+    custom_type.recoil_y = recoil_y
     return custom_id
 end
+
+---@class CustomTypeWeapon : CustomEntityType
+---@field bulletfunc function
+---@field mute_sound boolean
+---@field cooldown integer
+---@field recoil_x number
+---@field recoil_y number
 
 local function set_custom_bullet_callback(weapon_id)
     set_pre_entity_spawn(function(entity_type, x, y, layer, _, _)
@@ -628,6 +706,7 @@ local function set_custom_bullet_callback(weapon_id)
         local weapons_left = get_entities_at(weapon_id, MASK.ITEM, x-0.25, y-0.12, layer, 0.4)
         local last_left = #weapons_left
         local weapons = join(weapons_left, get_entities_at(weapon_id, MASK.ITEM, x+0.25, y-0.12, layer, 0.4))
+        ---@type CustomTypeWeapon
         for _,c_type in ipairs(custom_types) do
             for i, weapon_uid in ipairs(weapons) do
                 local c_data = c_type.entities[weapon_uid]
@@ -666,6 +745,18 @@ local function set_custom_bullet_callback(weapon_id)
     weapon_info[weapon_id].callb_set = true
 end
 
+local function custom_gun2_shotgun_update(ent, c_data, c_type)
+    c_data.not_shot = 6
+    c_type.update_callback(ent, c_data)
+    update_custom_held_portal(ent, c_data)
+end
+
+local function custom_gun2_update(ent, c_data, c_type)
+    c_data.not_shot = true
+    c_type.update_callback(ent, c_data)
+    update_custom_held_portal(ent, c_data)
+end
+
 ---Create a new custom entity type that is a gun, is called for each bullet, so be careful with recoil with shotgun
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
@@ -676,21 +767,7 @@ end
 ---@param ent_type integer
 ---@param mute_sound boolean
 ---@return integer
-function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, recoil_x, recoil_y, ent_type, mute_sound)
-    local custom_id = #custom_types + 1
-    custom_types[custom_id] = {
-        set = set_func,
-        update_callback = update_func,
-        carry_type = CARRY_TYPE.HELD,
-        ent_type = ent_type,
-        bulletfunc = bulletfunc,
-        cooldown = cooldown,
-        recoil_x = recoil_x,
-        recoil_y = recoil_y,
-        not_shot = true,
-        mute_sound = mute_sound,
-        entities = {}
-    }
+function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, recoil_x, recoil_y, ent_type, mute_sound, update_type)
     if not weapon_info[ent_type].callb_set then
         set_custom_bullet_callback(ent_type)
     end
@@ -706,15 +783,14 @@ function module.new_custom_gun2(set_func, update_func, bulletfunc, cooldown, rec
         weapon_info[ent_type].sound_callb_set = true
     end
 
-    custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
-        if ent.type.id == ENT_TYPE.ITEM_SHOTGUN then
-            c_data.not_shot = 6
-        else
-            c_data.not_shot = true
-        end
-        c_type.update_callback(ent, c_data)
-        update_custom_held_portal(ent, c_data, is_portal)
-    end
+    local update = ent_type == ENT_TYPE.ITEM_SHOTGUN and custom_gun2_shotgun_update or custom_gun2_update
+    local custom_id, custom_type = _new_custom_entity(set_func, update, update_func, CARRY_TYPE.HELD, ent_type, update_type)
+    custom_type.bulletfunc = bulletfunc
+    custom_type.cooldown = cooldown
+    custom_type.recoil_x = recoil_x
+    custom_type.recoil_y = recoil_y
+    custom_type.not_shot = true
+    custom_type.mute_sound = mute_sound
     return custom_id
 end
 
@@ -737,80 +813,82 @@ end
 
 local back_warn_sound = get_sound(VANILLA_SOUND.ITEMS_BACKPACK_WARN)
 
+local custom_purchasable_back_flammable_update = function(ent, c_data, c_type)
+    if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
+        spawn_replacement(ent, c_type.toreplace_custom_id)
+        c_data = nil
+    else
+        local danger_entities = get_entities_overlapping_hitbox({ENT_TYPE.MONS_MAGMAMAN, ENT_TYPE.ITEM_BULLET}, MASK.ANY, get_hitbox(ent.uid), ent.layer)
+        if danger_entities[1] or ent.onfire_effect_timer > 0 then
+            back_warn_sound:play()
+            if ent.last_owner_uid ~= -1 then
+                if get_entity(ent.last_owner_uid).type.search_flags == MASK.PLAYER then
+                    get_entity(c_data.shop_owner).aggro_trigger = true
+                else
+                    ---@type Movable
+                    local shop_owner = get_entity(c_data.shop_owner)
+                    if shop_owner.holding_uid ~= -1 then
+                        get_entity(shop_owner.holding_uid):trigger_action(shop_owner)
+                    else
+                        local ent_type = get_entity_type(c_data.shop_owner)
+                        if ent_type == ENT_TYPE.MONS_SHOPKEEPER or ent_type == ENT_TYPE.MONS_MERCHANT then
+                            local weapon_type = ent_type == ENT_TYPE.MONS_SHOPKEEPER and ENT_TYPE.ITEM_SHOTGUN or ENT_TYPE.ITEM_CROSSBOW
+                            local weapon_uid = spawn(weapon_type, 0, 0, LAYER.FRONT, 0, 0)
+                            pick_up(shop_owner.uid, weapon_uid)
+                            get_entity(weapon_uid):trigger_action(shop_owner)
+                            shop_owner.is_patrolling = true
+                        end
+                    end
+                end
+            end
+            spawn_replacement(ent, c_type.toreplace_custom_id).explosion_trigger = true
+            c_data = nil
+        end
+        c_type.update_callback(ent, c_data)
+    end
+end
+
+local function custom_purchasable_back_nonflammable_update(ent, c_data, c_type)
+    if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
+        spawn_replacement(ent, c_type.toreplace_custom_id)
+        c_data = nil
+    else
+        c_type.update_callback(ent, c_data)
+    end
+end
+
 ---Create a new custom entity type, use this for backpacks that spawn in shops
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
 ---@param toreplace_custom_id integer
 ---@param flammable boolean
 ---@return integer
-function module.new_custom_purchasable_back(set_func, update_func, toreplace_custom_id, flammable)
-    local custom_id = #custom_types + 1
-    custom_types[custom_id] = {
-        update_callback = update_func,
-        ent_type = ENT_TYPE.ITEM_ROCK,
-        entities = {}
-    }
+function module.new_custom_purchasable_back(set_func, update_func, toreplace_custom_id, flammable, update_type)
+    local custom_id, custom_type
+    local update, set
     if flammable then
-        custom_types[custom_id].set = function(ent, c_data, args)
+        set = function(ent, c_data, c_type_id, args)
             ent.flags = clr_flag(ent.flags, ENT_FLAG.TAKE_NO_DAMAGE)
             ent.hitboxx = 0.3
             ent.hitboxy = 0.35
             ent.offsety = -0.03
             set_timeout(function()
-                custom_types[custom_id].entities[ent.uid].shop_owner = ent.last_owner_uid
+                custom_type.entities[ent.uid].shop_owner = ent.last_owner_uid
             end, 1)
-            return set_func(ent, c_data, args)
+            return set_func(ent, c_data, c_type_id, args)
         end
-        custom_types[custom_id].update = function(ent, c_data, c_type)
-            if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
-                spawn_replacement(ent, toreplace_custom_id)
-                c_data = nil
-            else
-                local danger_entities = get_entities_overlapping_hitbox({ENT_TYPE.MONS_MAGMAMAN, ENT_TYPE.ITEM_BULLET}, MASK.ANY, get_hitbox(ent.uid), ent.layer)
-                if danger_entities[1] or ent.onfire_effect_timer > 0 then
-                    back_warn_sound:play()
-                    if ent.last_owner_uid ~= -1 then
-                        if get_entity(ent.last_owner_uid).type.search_flags == MASK.PLAYER then
-                            get_entity(c_data.shop_owner).aggro_trigger = true
-                        else
-                            ---@type Movable
-                            local shop_owner = get_entity(c_data.shop_owner)
-                            if shop_owner.holding_uid ~= -1 then
-                                get_entity(shop_owner.holding_uid):trigger_action(shop_owner)
-                            else
-                                local ent_type = get_entity_type(c_data.shop_owner)
-                                if ent_type == ENT_TYPE.MONS_SHOPKEEPER or ent_type == ENT_TYPE.MONS_MERCHANT then
-                                    local weapon_type = ent_type == ENT_TYPE.MONS_SHOPKEEPER and ENT_TYPE.ITEM_SHOTGUN or ENT_TYPE.ITEM_CROSSBOW
-                                    local weapon_uid = spawn(weapon_type, 0, 0, LAYER.FRONT, 0, 0)
-                                    pick_up(shop_owner.uid, weapon_uid)
-                                    get_entity(weapon_uid):trigger_action(shop_owner)
-                                    shop_owner.is_patrolling = true
-                                end
-                            end
-                        end
-                    end
-                    spawn_replacement(ent, toreplace_custom_id).explosion_trigger = true
-                    c_data = nil
-                end
-                c_type.update_callback(ent, c_data)
-            end
-        end
+        update = custom_purchasable_back_flammable_update
     else
-        custom_types[custom_id].set = function(ent, c_data, args)
+        set = function(ent, c_data, c_type_id, args)
             ent.hitboxx = 0.3
             ent.hitboxy = 0.35
             ent.offsety = -0.03
-            return set_func(ent, c_data, args)
+            return set_func(ent, c_data, c_type_id, args)
         end
-        custom_types[custom_id].update = function(ent, c_data, c_type)
-            if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
-                spawn_replacement(ent, toreplace_custom_id)
-                c_data = nil
-            else
-                c_type.update_callback(ent, c_data)
-            end
-        end
+        update = custom_purchasable_back_nonflammable_update
     end
+    custom_id, custom_type = _new_custom_entity(set, update, update_func, nil, ENT_TYPE.ITEM_ROCK, update_type)
+    custom_type.toreplace_custom_id = toreplace_custom_id
     return custom_id
 end
 
@@ -833,46 +911,84 @@ end
 
 local yellow = Color:yellow()
 
+local function custom_back_flammable_update(ent, c_data, c_type)
+    local holder = ent.overlay
+    if holder and holder.type.search_flags == MASK.PLAYER then
+        local backitem_uid = holder:worn_backitem()
+        if backitem_uid == ent.uid then
+            ent.fuel = 0
+            c_type.update_callback(ent, c_data, holder)
+            local holding = get_entity(holder.holding_uid)
+            if holding and holding.type.id == ENT_TYPE.ITEM_JETPACK and not c_type.entities[holding.uid] then
+                holder:unequip_backitem()
+                holder:pick_up(holding)
+            end
+        elseif not c_type.entities[backitem_uid] then
+            holder:unequip_backitem()
+            holder:pick_up(ent)
+        else
+            c_type.update_callback(ent, c_data)
+        end
+    else
+        c_type.update_callback(ent, c_data)
+    end
+    update_custom_held_portal(ent, c_data)
+end
+
+local function custom_back_nonflammable_update(ent, c_data, c_type)
+    local holder = ent.overlay
+    if holder and holder.type.search_flags == MASK.PLAYER then
+        local backitem_uid = holder:worn_backitem()
+        if backitem_uid == ent.uid then
+            ent.fuel = 0
+            c_type.update_callback(ent, c_data, holder)
+
+            local holding = get_entity(holder.holding_uid)
+            if holding and holding.type.id == ENT_TYPE.ITEM_JETPACK and not c_type.entities[holding.uid] then
+                holder:unequip_backitem()
+                ent.flags = clr_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
+                holder:pick_up(holding)
+            end
+        elseif not c_type.entities[backitem_uid] then
+            holder:unequip_backitem()
+            holder:pick_up(ent)
+        else
+            c_type.update_callback(ent, c_data)
+        end
+    else
+        c_type.update_callback(ent, c_data)
+        if test_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS) then
+            ent.flags = clr_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
+        end
+    end
+    if ent.explosion_trigger then
+        ent.explosion_trigger = false
+        ent.explosion_timer = 0
+        just_burnt = just_burnt + 1
+        last_burn = get_frame()
+    end
+    if test_flag(ent.flags, ENT_FLAG.DEAD) then
+        move_entity(ent.uid, 0, -123, 0, 0)
+    else
+        update_custom_held_portal(ent, c_data)
+    end
+end
+
 ---Create a new custom entity type that is a backpack, using jetpack as base entity
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
 ---@param flammable boolean @non-flammable backs might still generate the warning sound for a short time, might crash on OL but not on PL
 ---@return integer
-function module.new_custom_backpack(set_func, update_func, flammable)
-    local custom_id = #custom_types + 1
-    custom_types[custom_id] = {
-        update_callback = update_func,
-        carry_type = CARRY_TYPE.HELD,
-        ent_type = ENT_TYPE.ITEM_JETPACK,
-        entities = {}
-    }
+function module.new_custom_backpack(set_func, update_func, flammable, update_type)
+    local set, update
     if flammable then
-        custom_types[custom_id].set = set_func
-        custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
-            local holder = ent.overlay
-            if holder and holder.type.search_flags == MASK.PLAYER then
-                local backitem_uid = holder:worn_backitem()
-                if backitem_uid == ent.uid then
-                    ent.fuel = 0
-                    c_type.update_callback(ent, c_data, holder)
-                    local holding = get_entity(holder.holding_uid)
-                    if holding and holding.type.id == ENT_TYPE.ITEM_JETPACK and not c_type.entities[holding.uid] then
-                        holder:unequip_backitem()
-                        holder:pick_up(holding)
-                    end
-                elseif not c_type.entities[backitem_uid] then
-                    holder:unequip_backitem()
-                    holder:pick_up(ent)
-                else
-                    c_type.update_callback(ent, c_data)
-                end
-            else
-                c_type.update_callback(ent, c_data)
-            end
-            update_custom_held_portal(ent, c_data, is_portal)
-        end
+        set = set_func
+        update = custom_back_flammable_update
     else
-        custom_types[custom_id].set = function(ent, c_data)
+        if not nonflammable_backs_callbacks_set then
+            set_nonflammable_backs_callbacks()
+        end
+        set = function(ent, c_data, c_type_id, args)
             set_on_kill(ent.uid, function(entity)
                 generate_world_particles(PARTICLEEMITTER.ITEM_CRUSHED_SPARKS, entity.uid)
                 local x, y = get_position(entity.uid)
@@ -880,50 +996,11 @@ function module.new_custom_backpack(set_func, update_func, flammable)
                 move_entity(entity.uid, 0, -123, 0, 0)
             end)
             ent.flags = set_flag(ent.flags, ENT_FLAG.TAKE_NO_DAMAGE)
-            return set_func(ent, c_data)
+            return set_func(ent, c_data, c_type_id, args)
         end
-        if not nonflammable_backs_callbacks_set then
-            set_nonflammable_backs_callbacks()
-        end
-        custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
-            local holder = ent.overlay
-            if holder and holder.type.search_flags == MASK.PLAYER then
-                local backitem_uid = holder:worn_backitem()
-                if backitem_uid == ent.uid then
-                    ent.fuel = 0
-                    c_type.update_callback(ent, c_data, holder)
-
-                    local holding = get_entity(holder.holding_uid)
-                    if holding and holding.type.id == ENT_TYPE.ITEM_JETPACK and not c_type.entities[holding.uid] then
-                        holder:unequip_backitem()
-                        ent.flags = clr_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
-                        holder:pick_up(holding)
-                    end
-                elseif not c_type.entities[backitem_uid] then
-                    holder:unequip_backitem()
-                    holder:pick_up(ent)
-                else
-                    c_type.update_callback(ent, c_data)
-                end
-            else
-                c_type.update_callback(ent, c_data)
-                if test_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS) then
-                    ent.flags = clr_flag(ent.flags, ENT_FLAG.PAUSE_AI_AND_PHYSICS)
-                end
-            end
-            if ent.explosion_trigger then
-                ent.explosion_trigger = false
-                ent.explosion_timer = 0
-                just_burnt = just_burnt + 1
-                last_burn = get_frame()
-            end
-            if test_flag(ent.flags, ENT_FLAG.DEAD) then
-                move_entity(ent.uid, 0, -123, 0, 0)
-            else
-                update_custom_held_portal(ent, c_data, is_portal)
-            end
-        end
+        update = custom_back_nonflammable_update
     end
+    local custom_id = _new_custom_entity(set, update, update_func, CARRY_TYPE.HELD, ENT_TYPE.ITEM_JETPACK, update_type)
     return custom_id
 end
 
@@ -976,7 +1053,7 @@ end
 ---@param texture_id integer
 ---@param row integer
 ---@param column integer
----@param color userdata | nil
+---@param color? userdata
 ---@return table
 function module.new_item_draw_info(texture_id, row, column, color)
     color = color ~= nil and color or item_hud_color
@@ -999,50 +1076,45 @@ function module.add_player_item_draw(player_num, item_draw_info)
     return new_pos
 end
 
----Create a new custom entity type that is a powerup, will be called on the player
+local function custom_powerup_update(ent, c_data, c_type, _, c_type_id)
+    c_type.update_callback(ent, c_data)
+    if test_flag(ent.flags, ENT_FLAG.DEAD) then
+        if not entity_has_item_type(ent.uid, ENT_TYPE.ITEM_POWERUP_ANKH) then
+            if state.items.player_count ~= 1 then
+                local x, y, l = get_position(ent.uid)
+                module.spawn_custom_entity(c_type.custom_pickup_id, x, y, l, prng:random_float(PRNG_CLASS.PARTICLES)*0.2-0.1, 0.1)
+            end
+        end
+        c_type.entities[ent.uid] = nil
+    else
+        if state.theme == THEME.CITY_OF_GOLD and ent.idle_counter == 19 and ent.standing_on_uid ~= -1 and ent:standing_on().type.id == ENT_TYPE.FLOOR_ALTAR and ent:has_powerup(ENT_TYPE.ITEM_POWERUP_ANKH) and ent.stun_timer > 0 then
+            custom_entities_t_info_cog_ankh[#custom_entities_t_info_cog_ankh+1] = {
+                custom_type_id = c_type_id,
+                data = c_data,
+                slot = ent.inventory.player_slot
+            }
+            c_type.entities[ent.uid] = nil
+        end
+    end
+end
+
+---Create a new custom entity type that is a powerup, the functions will be called on the player
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
 ---@param texture_id integer
 ---@param row integer
 ---@param column integer
----@param color userdata | nil
+---@param color? userdata
 ---@return integer
-function module.new_custom_powerup(set_func, update_func, texture_id, row, column, color)
-    local custom_id = #custom_types + 1
-    custom_types[custom_id] = {
-        update_callback = update_func,
-        --custom_pickup_id to be set on set_powerup_drop
-        carry_type = CARRY_TYPE.POWERUP,
-        entities = {}
-    }
+function module.new_custom_powerup(set_func, update_func, texture_id, row, column, color, update_type)
     local item_draw_info = module.new_item_draw_info(texture_id, row, column, color)
-    custom_types[custom_id].item_draw_info = item_draw_info
 
-    custom_types[custom_id].set = function(ent, prev_c_data)
+    local set = function(ent, c_data, c_type_id, args)
         module.add_player_item_draw(ent.inventory.player_slot, item_draw_info)
-        return set_func(ent, prev_c_data)
+        return set_func(ent, c_data, c_type_id, args)
     end
-    custom_types[custom_id].update = function(ent, c_data, c_type, _, c_type_id)
-        c_type.update_callback(ent, c_data)
-        if test_flag(ent.flags, ENT_FLAG.DEAD) then
-            if not entity_has_item_type(ent.uid, ENT_TYPE.ITEM_POWERUP_ANKH) then
-                if state.items.player_count ~= 1 then
-                    local x, y, l = get_position(ent.uid)
-                    module.spawn_custom_entity(c_type.custom_pickup_id, x, y, l, prng:random_float(PRNG_CLASS.PARTICLES)*0.2-0.1, 0.1)
-                end
-            end
-            c_type.entities[ent.uid] = nil
-        else
-            if state.theme == THEME.CITY_OF_GOLD and ent.idle_counter == 19 and ent.standing_on_uid ~= -1 and ent:standing_on().type.id == ENT_TYPE.FLOOR_ALTAR and ent:has_powerup(ENT_TYPE.ITEM_POWERUP_ANKH) and ent.stun_timer > 0 then
-                custom_entities_t_info_cog_ankh[#custom_entities_t_info_cog_ankh+1] = {
-                    custom_type_id = c_type_id,
-                    data = c_data,
-                    slot = ent.inventory.player_slot
-                }
-                c_type.entities[ent.uid] = nil
-            end
-        end
-    end
+    local custom_id, custom_type = _new_custom_entity(set, custom_powerup_update, update_func, CARRY_TYPE.POWERUP, nil, update_type)
+    custom_type.item_draw_info = item_draw_info
     return custom_id
 end
 
@@ -1053,44 +1125,40 @@ function module.set_powerup_drop(custom_powerup_id, custom_pickup_id)
     custom_types[custom_powerup_id].custom_pickup_id = custom_pickup_id
 end
 
+local function custom_pickup_update(ent, c_data, c_type)
+    c_type.update_callback(ent, c_data)
+    if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) and ent.stand_counter > 15 and state.screen ~= SCREEN.TRANSITION then
+        for _, player in pairs(players) do
+            local has_powerup = custom_types[c_type.custom_powerup_id].entities[player.uid]
+            if player.health > 0 and (state.items.player_count == 1 or not has_powerup) and player:overlaps_with(ent) then
+                c_type.pickup_callback(ent, player, c_data, has_powerup)
+                if not has_powerup then
+                    module.set_custom_entity(player.uid, c_type.custom_powerup_id)
+                end
+                ent:destroy()
+                break
+            end
+        end
+    end
+    update_custom_held_portal(ent, c_data)
+end
+
 ---Create a new custom entity type
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
 ---@param pickup_func fun(ent: userdata, player: userdata, c_data: table, has_powerup: boolean) @called when a player picks up the pickup, use `do_pickup_effect` to generate the effect easily
 ---@param custom_powerup_id integer
----@param ent_type integer | nil
+---@param ent_type? integer
 ---@return integer
-function module.new_custom_pickup(set_func, update_func, pickup_func, custom_powerup_id, ent_type)
-    local custom_id = #custom_types + 1
-    custom_types[custom_id] = {
-        update_callback = update_func,
-        pickup_callback = pickup_func,
-        custom_powerup_id = custom_powerup_id,
-        carry_type = CARRY_TYPE.HELD,
-        ent_type = ent_type,
-        entities = {}
-    }
-    custom_types[custom_id].set = function(ent, c_data)
+function module.new_custom_pickup(set_func, update_func, pickup_func, custom_powerup_id, ent_type, update_type)
+    local set = function(ent, c_data, c_type_id, args)
         ent.more_flags = set_flag(ent.more_flags, 22)
-        return set_func(ent, c_data)
+        ent.flags = set_flag(ent.flags, ENT_FLAG.INTERACT_WITH_SEMISOLIDS)
+        return set_func(ent, c_data, c_type_id, args)
     end
-    custom_types[custom_id].update = function(ent, c_data, c_type, is_portal)
-        c_type.update_callback(ent, c_data)
-        if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) and ent.stand_counter > 15 and state.screen ~= SCREEN.TRANSITION then
-            for _, player in pairs(players) do
-                local has_powerup = custom_types[custom_powerup_id].entities[player.uid]
-                if player.health > 0 and (state.items.player_count == 1 or not has_powerup) and player:overlaps_with(ent) then
-                    c_type.pickup_callback(ent, player, c_data, has_powerup)
-                    if not has_powerup then
-                        module.set_custom_entity(player.uid, custom_powerup_id)
-                    end
-                    ent:destroy()
-                    break
-                end
-            end
-        end
-        update_custom_held_portal(ent, c_data, is_portal)
-    end
+    local custom_id, custom_type = _new_custom_entity(set, custom_pickup_update, update_func, CARRY_TYPE.HELD, ent_type, update_type)
+    custom_type.pickup_callback = pickup_func
+    custom_type.custom_powerup_id = custom_powerup_id
     return custom_id
 end
 
@@ -1140,32 +1208,29 @@ local function spawn_pickup_replacement(ent, c_data, toreplace_custom_id)
     end
 end
 
+local function custom_purchasable_pickup_update(ent, c_data, c_type)
+    c_type.update_callback(ent, c_data)
+    if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
+        spawn_pickup_replacement(ent, c_data, c_type.toreplace_custom_id)
+    end
+end
+
 ---Create a new custom entity type
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
 ---@param toreplace_custom_id integer @id of the custom entity that will replace this when bought / shopkeeper angry
 ---@return integer
-function module.new_custom_purchasable_pickup(set_func, update_func, toreplace_custom_id)
-    local custom_id = #custom_types + 1
-    custom_types[custom_id] = {
-        update_callback = update_func,
-        carry_type = CARRY_TYPE.HELD,
-        ent_type = ENT_TYPE.ITEM_ROCK,
-        entities = {}
-    }
-    custom_types[custom_id].set = function(ent, c_data)
+function module.new_custom_purchasable_pickup(set_func, update_func, toreplace_custom_id, update_type)
+    local set = function(ent, c_data, c_type_id, args)
         ent.more_flags = set_flag(ent.more_flags, 22)
+        ent.flags = set_flag(ent.flags, ENT_FLAG.INTERACT_WITH_SEMISOLIDS)
         ent.width, ent.height = 1.25, 1.25
         ent.hitboxx, ent.hitboxy = 0.3, 0.38
         ent.offsety = -0.05
-        return set_func(ent, c_data)
+        return set_func(ent, c_data, c_type_id, args)
     end
-    custom_types[custom_id].update = function(ent, c_data, c_type, _)
-        c_type.update_callback(ent, c_data)
-        if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) then
-            spawn_pickup_replacement(ent, c_data, toreplace_custom_id)
-        end
-    end
+    local custom_id, custom_type = _new_custom_entity(set, custom_purchasable_pickup_update, update_func, CARRY_TYPE.HELD, ENT_TYPE.ITEM_ROCK, update_type)
+    custom_type.toreplace_custom_id = toreplace_custom_id
     return custom_id
 end
 
@@ -1175,7 +1240,7 @@ end
 ---@param optional_args any @any type of value that will be recived on the entity set function, use as table if you want to pass more arguments
 function module.set_custom_entity(uid, custom_type_id, optional_args)
     local ent = get_entity(uid)
-    set_custom_entity(uid, ent, custom_type_id, nil, optional_args)
+    _set_custom_entity(uid, ent, custom_type_id, nil, optional_args)
 end
 
 ---Spawn a custom entity, make sure to have defined the ent_type on the custom ent type to use this
@@ -1189,7 +1254,7 @@ end
 function module.spawn_custom_entity(custom_type_id, x, y, l, vel_x, vel_y, optional_args)
     local uid = spawn(custom_types[custom_type_id].ent_type, x, y, l, vel_x, vel_y)
     local ent = get_entity(uid)
-    set_custom_entity(uid, ent, custom_type_id, nil, optional_args)
+    _set_custom_entity(uid, ent, custom_type_id, nil, optional_args)
 end
 
 ---Add a callback after the entity doesn't exist anymore
@@ -1202,39 +1267,40 @@ end
 ---Get the data of a custom entity, returns nil if doesn't exist
 ---@param ent_uid integer
 ---@param custom_ent_id integer
----@return table
+---@return table?
 function module.get_custom_entity(ent_uid, custom_ent_id)
     return custom_types[custom_ent_id].entities[ent_uid]
 end
 
-local function get_custom_item(custom_types_table)
+local function get_custom_item(custom_types_table, is_from_shop)
     if not custom_types_table[1] then
         return
     end
     local index = prng:random_index(#custom_types_table, PRNG_CLASS.EXTRA_SPAWNS)
     local custom_type_id = custom_types_table[index]
-    if custom_types[custom_type_id].max_one then
+    if is_from_shop and custom_types[custom_type_id].max_one then
         custom_types_table[index] = custom_types_table[#custom_types_table]
         custom_types_table[#custom_types_table] = nil
     end
     return custom_type_id, custom_types[custom_type_id].ent_type
 end
 
-local function get_custom_item_from_chances(chances_table)
+local function get_custom_item_from_chances(chances_table, is_from_shop)
     local chance = prng:random_float(PRNG_CLASS.EXTRA_SPAWNS)
     local custom_type_id, entity_type
     if chance < 0.3 then
-        custom_type_id, entity_type = get_custom_item(chances_table.common)
+        custom_type_id, entity_type = get_custom_item(chances_table.common, is_from_shop)
     elseif chance < 0.45 then
-        custom_type_id, entity_type = get_custom_item(chances_table.low)
+        custom_type_id, entity_type = get_custom_item(chances_table.low, is_from_shop)
     elseif chance < 0.5 then
-        custom_type_id, entity_type = get_custom_item(chances_table.lower)
+        custom_type_id, entity_type = get_custom_item(chances_table.lower, is_from_shop)
     end
     return custom_type_id, entity_type
 end
 
+---Only for shops
 local function spawn_custom_item_random(shop_chances, x, y, l)
-    local custom_type_id, entity_type = get_custom_item_from_chances(shop_chances)
+    local custom_type_id, entity_type = get_custom_item_from_chances(shop_chances, true)
     if custom_type_id then
         local uid = spawn_entity_nonreplaceable(entity_type, x, y, l, 0, 0)
         module.set_custom_entity(uid, custom_type_id)
@@ -1245,11 +1311,7 @@ end
 local function add_shop_chances_by_pos(shop_chances, rx, ry, l)
     if shops_by_room_pos[rx] then
         if shops_by_room_pos[rx][ry] then
-            if shops_by_room_pos[rx][ry][l] then
-                messpect("BUG (shouldn't break anything): shop already exists")
-            else
-                shops_by_room_pos[rx][ry][l] = shop_chances
-            end
+            shops_by_room_pos[rx][ry][l] = shop_chances
         else
             shops_by_room_pos[rx][ry] = {[l] = shop_chances}
         end
@@ -1263,13 +1325,7 @@ end
 local function spawn_custom_random_item_roomtype(roomtype, rx, ry, x, y, l)
     local shop_chances
     if has(normal_shop_rooms, roomtype) then
-        shop_chances = clone_chances(custom_types_shop[state.level_gen.shop_type])
-        add_shop_chances_by_pos(shop_chances, rx, ry, l)
-    elseif roomtype == ROOM_TEMPLATE.CURIOSHOP or roomtype == ROOM_TEMPLATE.CURIOSHOP_LEFT then
-        shop_chances = clone_chances(custom_types_tun_shop)
-        add_shop_chances_by_pos(shop_chances, rx, ry, l)
-    elseif roomtype == ROOM_TEMPLATE.CAVEMANSHOP or roomtype == ROOM_TEMPLATE.CAVEMANSHOP_LEFT then
-        shop_chances = clone_chances(custom_types_caveman_shop)
+        shop_chances = clone_chances(l == LAYER.FRONT and custom_types_shop[state.level_gen.shop_type] or custom_types_shop[state.level_gen.backlayer_shop_type])
         add_shop_chances_by_pos(shop_chances, rx, ry, l)
     else
         return nil
@@ -1316,13 +1372,9 @@ local function set_custom_shop_spawns()
     custom_shop_items_set = true
 end
 
-local function add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
+local function _add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
     if shop_type <= 13 then
         table.insert(custom_types_shop[shop_type][chance_type], custom_ent_id)
-    elseif shop_type == SHOP_ROOM_TYPES.TUN then
-        table.insert(custom_types_tun_shop[chance_type], custom_ent_id)
-    elseif shop_type == SHOP_ROOM_TYPES.CAVEMAN then
-        table.insert(custom_types_caveman_shop[chance_type], custom_ent_id)
     elseif shop_type == SHOP_ROOM_TYPES.DICESHOP then
         table.insert(custom_types_diceshop[chance_type], custom_ent_id)
     elseif shop_type == SHOP_ROOM_TYPES.TUSKDICESHOP then
@@ -1335,7 +1387,7 @@ end
 ---@param custom_ent_id integer
 ---@param chance_type any @Use CHANCE.*
 ---@param shop_types integer | integer[]
----@param max_one boolean @Limit the entity to only spawn max one time per shop
+---@param max_one? boolean @Limit the entity to only spawn max one time per shop
 function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types, max_one)
     if not custom_shop_items_set then
         set_custom_shop_spawns()
@@ -1343,41 +1395,58 @@ function module.add_custom_shop_chance(custom_ent_id, chance_type, shop_types, m
     custom_types[custom_ent_id].max_one = max_one
     if type(shop_types) == "table" then
         for _, shop_type in ipairs(shop_types) do
-            add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
+            _add_custom_shop_chance(custom_ent_id, chance_type, shop_type)
         end
     else
-        add_custom_shop_chance(custom_ent_id, chance_type, shop_types)
+        _add_custom_shop_chance(custom_ent_id, chance_type, shop_types)
     end
 end
 
-local toreplace_crate_content = {
+local toreplace_container_content = {
     custom_type_id = nil,
-    entity_type = nil
+    entity_type = nil,
+    random_velocity = nil
 }
-local function set_custom_container_spawns()
-    local function customize_drop(crate)
-        local custom_type_id, entity_type = get_custom_item_from_chances(custom_types_container[crate.type.id])
-        if custom_type_id then
-            crate.inside = ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN
-            toreplace_crate_content.custom_type_id = custom_type_id
-            toreplace_crate_content.entity_type = entity_type
-        end
-    end
 
-    set_post_entity_spawn(function(crate)
-        set_on_kill(crate.uid, customize_drop)
-        set_on_open(crate.uid, customize_drop)
-    end, SPAWN_TYPE.ANY, MASK.ANY, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_GHIST_PRESENT})
+local function replace_inside_with_custom_entity(container, custom_type_id, entity_type, random_velocity)
+    container.inside = ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN
+    toreplace_container_content.custom_type_id = custom_type_id
+    toreplace_container_content.entity_type = entity_type
+    toreplace_container_content.random_velocity = random_velocity
+end
 
+local function set_custom_container_item_spawns()
     set_pre_entity_spawn(function(_, x, y, layer, _, _) --this is immediately called after the kill or open, will work even when opening many crates at the same time
-        if toreplace_crate_content.custom_type_id then
-            local uid = spawn(toreplace_crate_content.entity_type, x, y, layer, prng:random_float(PRNG_CLASS.EXTRA_SPAWNS)*0.2-0.1, 0.1)
-            module.set_custom_entity(uid, toreplace_crate_content.custom_type_id)
+        if toreplace_container_content.custom_type_id then
+            local vx, vy = 0, 0
+            if toreplace_container_content.random_velocity then
+                vx, vy = prng:random_float(PRNG_CLASS.EXTRA_SPAWNS)*0.2-0.1, 0.1
+            end
+            local uid = spawn(toreplace_container_content.entity_type, x, y, layer, vx, vy)
+            module.set_custom_entity(uid, toreplace_container_content.custom_type_id)
 
-            toreplace_crate_content.custom_type_id = nil
+            toreplace_container_content.custom_type_id = nil
             return uid
         end
     end, SPAWN_TYPE.SYSTEMIC, MASK.ANY, ENT_TYPE.ITEM_TUTORIAL_MONSTER_SIGN)
+    custom_container_item_spawns_set = true
+end
+
+local function set_custom_container_spawns()
+    local function customize_random_drop(container)
+        local custom_type_id, entity_type = get_custom_item_from_chances(custom_types_container[container.type.id], false)
+        if custom_type_id then
+            replace_inside_with_custom_entity(container, custom_type_id, entity_type, true)
+        end
+    end
+
+    set_post_entity_spawn(function(container)
+        set_on_kill(container.uid, customize_random_drop)
+        set_on_open(container.uid, customize_random_drop)
+    end, SPAWN_TYPE.ANY, MASK.ANY, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_GHIST_PRESENT})
+    if not custom_container_item_spawns_set then
+        set_custom_container_item_spawns()
+    end
     custom_container_items_set = true
 end
 
@@ -1413,6 +1482,143 @@ function module.set_price(entity, base_price, inflation)
     end, 1)
 end
 
+---@class CrustItemChance
+---@field chance number
+---@field ent_type integer
+---@field custom_type_id integer
+
+---@type CrustItemChance[]
+local crust_item_chances = {}
+
+
+local function set_custom_entity_in_alive_embedded_on_ice(container_uid, floor_uid, custom_type_id, ent_type)
+    local function customize_drop()
+        replace_inside_with_custom_entity(get_entity(container_uid), custom_type_id, ent_type, false)
+    end
+    set_on_kill(floor_uid, customize_drop)
+end
+
+local function spawn_entity_in_crust(ent_type, custom_type_id, floor_uid, texture_id, anim_frame)
+    local uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, floor_uid, 0, 0)
+    set_custom_entity_in_alive_embedded_on_ice(uid, floor_uid, custom_type_id, ent_type)
+    local ent = get_entity(uid)
+    ent.inside = ENT_TYPE.FX_SHADOW
+    ent:set_texture(texture_id)
+    ent.animation_frame = anim_frame
+    ent:set_draw_depth(9)
+    if not test_flag(state.special_visibility_flags, 1) then
+        ent.flags = set_flag(ent.flags, ENT_FLAG.INVISIBLE)
+    end
+end
+
+local function filter_noitem_floors(floors)
+    local new_floors = {}
+    for _, v in ipairs(floors) do
+        if not entity_get_items_by(v, {ENT_TYPE.EMBED_GOLD, ENT_TYPE.EMBED_GOLD_BIG}, MASK.DECORATION)[1]
+        and not entity_get_items_by(v, 0, MASK.ITEM)[1] then
+            table.insert(new_floors, v)
+        end
+    end
+    return new_floors
+end
+
+local VALID_ITEM_FLOORS = {ENT_TYPE.FLOOR_GENERIC, ENT_TYPE.FLOOR_SURFACE, ENT_TYPE.FLOOR_JUNGLE, ENT_TYPE.FLOOR_TUNNEL_CURRENT, ENT_TYPE.FLOOR_TUNNEL_NEXT, ENT_TYPE.FLOOR_PEN, ENT_TYPE.FLOOR_TOMB, ENT_TYPE.FLOORSTYLED_BABYLON, ENT_TYPE.FLOORSTYLED_BEEHIVE, ENT_TYPE.FLOORSTYLED_COG, ENT_TYPE.FLOORSTYLED_DUAT, ENT_TYPE.FLOORSTYLED_GUTS, ENT_TYPE.FLOORSTYLED_MINEWOOD, ENT_TYPE.FLOORSTYLED_MOTHERSHIP, ENT_TYPE.FLOORSTYLED_PAGODA, ENT_TYPE.FLOORSTYLED_STONE, ENT_TYPE.FLOORSTYLED_SUNKEN, ENT_TYPE.FLOORSTYLED_TEMPLE, ENT_TYPE.FLOORSTYLED_VLAD}
+
+local function spawn_item_on_random_floor(ent_type, custom_type_id)
+    local floors = filter_noitem_floors(get_entities_by(VALID_ITEM_FLOORS, MASK.FLOOR, LAYER.BOTH))
+    if floors[1] then
+        local floor_uid = floors[prng:random_index(#floors, PRNG_CLASS.PROCEDURAL_SPAWNS)]
+        local custom_type = custom_types[custom_type_id]
+        spawn_entity_in_crust(ent_type, custom_type_id, floor_uid, custom_type.texture_id, custom_type.anim_frame)
+    end
+end
+
+local function set_entity_crust_callbacks()
+    set_callback(function()
+        for _, crust_item_chance in ipairs(crust_item_chances) do
+            if prng:random_float(PRNG_CLASS.PROCEDURAL_SPAWNS) <= crust_item_chance.chance then
+                spawn_item_on_random_floor(crust_item_chance.ent_type, crust_item_chance.custom_type_id)
+            end
+        end
+    end, ON.POST_LEVEL_GENERATION)
+    if custom_container_item_spawns_set then
+        set_custom_container_item_spawns()
+    end
+end
+
+---Add chance for an item to be in crust, **must have used** `add_custom_entity_info` so it can use the correct texture
+---@param custom_id any
+---@param chance any
+function module.add_custom_entity_crust_chance(custom_id, chance)
+    if not entity_crust_callbacks_set then
+        set_entity_crust_callbacks()
+    end
+    crust_item_chances[#crust_item_chances+1] = {
+        chance = chance,
+        ent_type = custom_types[custom_id].ent_type,
+        custom_type_id = custom_id
+    }
+end
+
+---set some entity info on the custom entity type, can be used with set_entity_info_from_custom_id() on the entity set function to use less lines of code.
+---@param custom_id integer
+---@param name string
+---@param texture_id integer
+---@param anim_frame integer
+---@param price? integer
+---@param price_inflation? integer
+---@return nil
+function module.add_custom_entity_info(custom_id, name, texture_id, anim_frame, price, price_inflation)
+    local custom_type = custom_types[custom_id]
+    custom_type.entity_name = name
+    custom_type.texture_id = texture_id
+    custom_type.anim_frame = anim_frame
+    if price then
+        custom_type.price = price
+        custom_type.price_inflation = price_inflation
+    end
+end
+
+---Set the entity info from custom entity id, sets texture, animation frame, name, and price (if it has a price)
+---@param ent userdata
+---@param custom_id integer
+---@return nil
+function module.set_entity_info_from_custom_id(ent, custom_id)
+    local custom_type = custom_types[custom_id]
+    add_custom_name(ent.uid, custom_type.entity_name)
+    ent:set_texture(custom_type.texture_id)
+    ent.animation_frame = custom_type.anim_frame
+    if custom_type.price then
+        module.set_price(ent, custom_type.price, custom_type.price_inflation)
+    end
+end
+
+---define a custom tilecode for the entity and it's `pre_tile_code_callback`
+---@param custom_id integer
+---@param tilecode_name string
+---@param spawn_to_floor boolean
+---@return nil
+function module.define_custom_entity_tilecode(custom_id, tilecode_name, spawn_to_floor)
+    custom_types[custom_id].tilecode_name = tilecode_name
+    define_tile_code(tilecode_name)
+    local spawn_func
+    if spawn_to_floor then
+        spawn_func = spawn_on_floor
+    else
+        spawn_func = spawn_grid_entity
+    end
+    set_pre_tile_code_callback(function (x, y, layer)
+        module.set_custom_entity(spawn_func(custom_types[custom_id].ent_type, x, y, layer), custom_id)
+    end, tilecode_name)
+end
+
+function module.unset_custom_entity(uid, custom_id)
+    if custom_types[custom_id].entities[uid] and custom_types[custom_id].entities[uid]._statemachine then
+        clear_entity_callback(uid, custom_types[custom_id].entities[uid]._statemachine)
+    end
+    custom_types[custom_id].entities[uid] = nil
+end
+
 module.custom_types = custom_types --array of custom types
 module.SHOP_TYPE = SHOP_ROOM_TYPES
 module.CARRY_TYPE = {
@@ -1421,6 +1627,5 @@ module.CARRY_TYPE = {
     POWERUP = 4
 }
 
---register_console_command('get_custom_types', function() return custom_types end)
-
+exports = module
 return module
