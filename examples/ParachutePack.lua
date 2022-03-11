@@ -54,6 +54,7 @@ local parachute_back_p = c_ent_lib.new_custom_purchasable_back(parachute_back_p_
 c_ent_lib.init()
 
 c_ent_lib.add_custom_shop_chance(parachute_back_p, c_ent_lib.CHANCE.LOW, {c_ent_lib.SHOP_TYPE.GENERAL_STORE, c_ent_lib.SHOP_TYPE.SPECIALTY_SHOP, c_ent_lib.SHOP_TYPE.HIRED_HAND_SHOP, c_ent_lib.SHOP_TYPE.PET_SHOP, c_ent_lib.SHOP_TYPE.TURKEY_SHOP}, true)
+c_ent_lib.add_custom_shop_chance(parachute_back_p, c_ent_lib.CHANCE.LOWER, {c_ent_lib.SHOP_TYPE.TUSKDICESHOP, c_ent_lib.SHOP_TYPE.DICESHOP})
 c_ent_lib.add_custom_container_chance(parachute_back, c_ent_lib.CHANCE.LOW, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT})
 
 c_ent_lib.add_custom_entity_crust_chance(parachute_back, 0.05)
