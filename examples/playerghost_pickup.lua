@@ -262,8 +262,11 @@ set_callback(function()
     end
 end, ON.LOADING)
 
+local pickup_spawned_on_dar = false
+
 set_callback(function()
     ghost_chains = {}
+    pickup_spawned_on_dar = false
 end, ON.POST_LEVEL_GENERATION)
 
 set_callback(function(render_ctx, draw_depth)
@@ -283,5 +286,13 @@ set_callback(function(render_ctx, draw_depth)
         end
     end
 end, ON.RENDER_PRE_DRAW_DEPTH)
+
+set_pre_tile_code_callback(function (x, y, layer, room_template)
+    if room_template == ROOM_TEMPLATE.FEELING_TOMB and not pickup_spawned_on_dar then
+        celib.set_custom_entity(spawn_on_floor(ENT_TYPE.ITEM_PICKUP_COMPASS, x, y, layer), pickup_id)
+        pickup_spawned_on_dar = true
+        return true
+    end
+end, "treasure")
 
 celib.init()
