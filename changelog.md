@@ -1,5 +1,10 @@
 # Version Changelog
 
+## `1.0b`
+- Changed `ON.LOADING` callback to `ON.PRE_LOAD_SCREEN`, custom entities shouldn't be lost on transition due to frame drops
+- Warping to another level (no transition) now preserves the custom entities
+- Custom powerups won't render in HUD if it's invisible
+
 ## `1.0a`
 - Added `unset_custom_entity` function
 - Optimized some functions by replacing `get_entities_by_type` with `get_entities_by`
