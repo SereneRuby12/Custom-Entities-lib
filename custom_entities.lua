@@ -1,6 +1,6 @@
 meta = {
     name = "Custom-Entities-Library",
-    version = "1.0a",
+    version = "1.0b",
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
