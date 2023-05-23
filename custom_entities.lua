@@ -235,6 +235,15 @@ module.UPDATE_TYPE = {
     PRE_STATEMACHINE = 2
 }
 
+local function unset_custom_entity(uid, c_data, custom_type)
+    if c_data._lib_callbacks then
+        for _, callback in pairs(c_data._lib_callbacks) do
+            clear_entity_callback(uid, callback)
+        end
+    end
+    custom_type.entities[uid] = nil
+end
+
 local function _set_custom_entity(uid, ent, custom_type_id, c_data, optional_args)
     local custom_type = custom_types[custom_type_id]
     c_data = custom_type.set(ent, c_data, custom_type_id, optional_args)
@@ -242,14 +251,16 @@ local function _set_custom_entity(uid, ent, custom_type_id, c_data, optional_arg
         c_data = {}
     end
     if custom_type.update_type ~= module.UPDATE_TYPE.FRAME then
+        if not c_data._lib_callbacks then
+            c_data._lib_callbacks = {}
+        end
         if custom_type.update_type == module.UPDATE_TYPE.POST_STATEMACHINE then
-            c_data._statemachine = set_post_statemachine(uid, custom_type.update)
+            c_data._lib_callbacks[#c_data._lib_callbacks+1] = set_post_statemachine(uid, custom_type.update)
         else
-            c_data._statemachine = set_pre_statemachine(uid, custom_type.update)
+            c_data._lib_callbacks[#c_data._lib_callbacks+1] = set_pre_statemachine(uid, custom_type.update)
         end
         set_on_kill(uid, function()
-            custom_type.entities[uid] = nil
-            clear_entity_callback(uid, c_data._statemachine)
+            unset_custom_entity(uid, c_data, custom_type)
             if custom_type.after_destroy_callback then
                 custom_type.after_destroy_callback(c_data, uid)
             end
@@ -657,23 +668,6 @@ function module.new_custom_entity(set_func, update_func, carry_type, ent_type, u
     return _new_custom_entity(set_func, update, update_func, carry_type, ent_type, update_type)
 end
 
-
-local function custom_gun_update(ent, c_data, c_type)
-    ent.cooldown = math.max(ent.cooldown, 2)
-    local holder = ent.overlay
-    if holder and holder.type.search_flags == MASK.PLAYER then --Other entities that can hold guns will never shoot when cooldown isn't zero, so only players, also to prevent activefloors
-        if holder:is_button_pressed(BUTTON.WHIP) and ent.cooldown == 2 and holder.state ~= CHAR_STATE.DUCKING and holder.animation_frame ~= 18 then
-            ent.cooldown = c_type.cooldown+2
-            local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
-            holder.velocityx = holder.velocityx + c_type.recoil_x*recoil_dir
-            holder.velocityy = holder.velocityy + c_type.recoil_y
-            c_type.shoot(ent, c_data)
-        end
-    end
-    c_type.update_callback(ent, c_data)
-    update_custom_held_portal(ent, c_data)
-end
-
 ---Create a new custom entity type that is a gun
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
@@ -684,7 +678,24 @@ end
 ---@param ent_type integer
 ---@return integer
 function module.new_custom_gun(set_func, update_func, firefunc, cooldown, recoil_x, recoil_y, ent_type, update_type)
-    local custom_id, custom_type = _new_custom_entity(set_func, custom_gun_update, update_func, CARRY_TYPE.HELD, ent_type, update_type)
+    ---@type EntSet
+    local set = function (ent, c_data, custom_id, extra_args)
+        local cb_id = ent:set_pre_trigger_action(function(ent, holder)
+            if ent.cooldown == 0 then
+                ent.cooldown = cooldown
+                local recoil_dir = test_flag(holder.flags, ENT_FLAG.FACING_LEFT) and 1 or -1
+                holder.velocityx = holder.velocityx + recoil_x*recoil_dir
+                holder.velocityy = holder.velocityy + recoil_y
+                local c_data = module.get_custom_entity(ent.uid, custom_id)
+                firefunc(ent, c_data)
+            end
+            return true
+        end)
+        c_data = set_func(ent, c_data, custom_id, extra_args) or {}
+        c_data._lib_callbacks = {cb_id}
+        return c_data
+    end
+    local custom_id, custom_type = _new_custom_entity(set, update_custom_held, update_func, CARRY_TYPE.HELD, ent_type, update_type)
     custom_type.shoot = firefunc
     custom_type.cooldown = cooldown
     custom_type.recoil_x = recoil_x
@@ -1621,10 +1632,9 @@ function module.define_custom_entity_tilecode(custom_id, tilecode_name, spawn_to
 end
 
 function module.unset_custom_entity(uid, custom_id)
-    if custom_types[custom_id].entities[uid] and custom_types[custom_id].entities[uid]._statemachine then
-        clear_entity_callback(uid, custom_types[custom_id].entities[uid]._statemachine)
+    if custom_types[custom_id].entities[uid] then
+        unset_custom_entity(uid, custom_types[custom_id].entities[uid], custom_types[custom_id])
     end
-    custom_types[custom_id].entities[uid] = nil
 end
 
 module.custom_types = custom_types --array of custom types

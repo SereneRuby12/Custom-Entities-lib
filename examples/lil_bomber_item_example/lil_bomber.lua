@@ -48,7 +48,7 @@ local function mycustom_shoot(weapon)
     bomb.last_owner_uid = weapon.overlay.uid
 end
 
-local c_gun = c_ent_lib.new_custom_gun2(mycustom_set, mycustom_update, mycustom_shoot, 60, 0, 0, ENT_TYPE.ITEM_FREEZERAY, true)
+local c_gun = c_ent_lib.new_custom_gun(mycustom_set, mycustom_update, mycustom_shoot, 60, 0.2, 0.05, ENT_TYPE.ITEM_FREEZERAY)
 c_ent_lib.add_custom_entity_info(c_gun, "Lil Bomber", lil_bomber_texture_id, 0, 15000, 1500)
 
 c_ent_lib.add_custom_shop_chance(c_gun, c_ent_lib.CHANCE.LOW, {c_ent_lib.SHOP_TYPE.TUN, c_ent_lib.SHOP_TYPE.CAVEMAN}, true)
