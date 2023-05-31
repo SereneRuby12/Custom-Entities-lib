@@ -4,7 +4,7 @@ meta = {
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
-
+--TODO: change backitem carry type to CARRY_TYPE.BACK
 
 local FLAGS_BIT = { --https://github.com/Mr-Auto/spelunky2-lua-libs/blob/main/libraries/flags/flags.lua
 0x1,
@@ -52,6 +52,7 @@ local module = {}
 ---@field entities table
 ---@field after_destroy_callback nil | function
 ---@field custom_powerup_id nil | integer
+---@field custom_pickup_id nil | integer
 ---@field pickup_callback nil | function
 ---@field entity_name nil | string
 ---@field texture_id nil | integer
@@ -98,6 +99,15 @@ local custom_entities_t_info_storage = {}
 local custom_entities_t_info_cog_ankh = {}
 local storage_pos = nil
 
+---@enum ARENA_ITEM_SETTING
+local ARENA_ITEM_SETTING = {
+    DISABLED = 1,
+    START_WITH = 2,
+    CRATE = 3,
+    CRATE_START_WITH = 4,
+}
+
+---@enum CARRY_TYPE
 local CARRY_TYPE = {
     HELD = 1,
     MOUNT = 2,
@@ -159,7 +169,15 @@ module.ALL_CONTAINERS = {
     ENT_TYPE.ITEM_PRESENT,
     ENT_TYPE.ITEM_GHIST_PRESENT
 }
+---@type table<integer, ARENA_ITEM_SETTING>
+local custom_dm_item_settings = {}
+--- Used to check if the number of vanilla items on dm crates is actually zero
+--- but was changed by this lib to allows crates to spawn custom items
+local no_dm_vanilla_items = false
+
+local arena_customization_options_set = false
 local custom_container_items_set = false
+local custom_dm_container_items_set = false
 local custom_container_item_spawns_set = false
 local nonflammable_backs_callbacks_set = false
 local item_draw_callbacks_set = false
@@ -1462,11 +1480,198 @@ local function set_custom_container_spawns()
     set_post_entity_spawn(function(container)
         set_on_kill(container.uid, customize_random_drop)
         set_on_open(container.uid, customize_random_drop)
-    end, SPAWN_TYPE.ANY, MASK.ANY, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_GHIST_PRESENT})
+    end, SPAWN_TYPE.ANY, MASK.ITEM, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT, ENT_TYPE.ITEM_GHIST_PRESENT})
     if not custom_container_item_spawns_set then
         set_custom_container_item_spawns()
     end
     custom_container_items_set = true
+end
+
+---@type string[]
+local arena_items_keys = {}
+do
+    local index = 1
+    for key, _ in pairs(getmetatable(state.arena.items_in_crate)) do
+        if key:sub(1, 2) ~= "__" then
+            arena_items_keys[index] = key
+            index = index + 1
+        end
+    end
+end
+
+local function get_arena_crate_item_count()
+    local amount = 0
+    local items_in_crate = state.arena.items_in_crate
+    for _, key in pairs(arena_items_keys) do
+        if items_in_crate[key] == true then -- `== true` to discard functions like `new` or `class_cast`
+            amount = amount + 1
+        end
+    end
+    return amount
+end
+
+---@return integer
+---@return integer[]
+local function get_enabled_custom_dm_crate_items()
+    local count, items = 0, {}
+    for custom_type_id, selected_opt in pairs(custom_dm_item_settings) do
+        if selected_opt == ARENA_ITEM_SETTING.CRATE
+            or selected_opt == ARENA_ITEM_SETTING.CRATE_START_WITH
+        then
+            count = count + 1
+            items[#items+1] = custom_type_id
+        end
+    end
+    return count, items
+end
+
+local function set_custom_arena_items_callbacks()
+    local arena_crate_item_count
+    local function customize_arena_drop(container)
+        local num_custom_dm_items, custom_dm_items_id = get_enabled_custom_dm_crate_items()
+        local vanilla_item_count = arena_crate_item_count
+        if no_dm_vanilla_items then
+            vanilla_item_count = 0
+        end
+        local index = prng:random_index(vanilla_item_count + num_custom_dm_items, PRNG_CLASS.EXTRA_SPAWNS)
+        if index and index <= num_custom_dm_items then
+            local custom_type_id = custom_dm_items_id[index]
+            if custom_types[custom_type_id].custom_pickup_id then custom_type_id = custom_types[custom_type_id].custom_pickup_id end
+            replace_inside_with_custom_entity(container, custom_type_id, custom_types[custom_type_id].ent_type)
+        end
+    end
+    set_post_entity_spawn(function(container)
+        set_on_kill(container.uid, customize_arena_drop)
+        set_on_open(container.uid, customize_arena_drop)
+    end, SPAWN_TYPE.ANY, MASK.ITEM, ENT_TYPE.ITEM_DMCRATE)
+    set_callback(function ()
+        if state.screen ~= SCREEN.ARENA_LEVEL then return end
+        if no_dm_vanilla_items then
+            if get_enabled_custom_dm_crate_items() > 0 then
+                --enable random item to allow crate spawns
+                state.arena.items_in_crate.jetpack = true
+            else
+                state.arena.items_in_crate.jetpack = false
+            end
+        end
+        arena_crate_item_count = get_arena_crate_item_count()
+    end, ON.PRE_LEVEL_GENERATION)
+    set_callback(function ()
+        if state.screen_next == SCREEN.ARENA_MENU then
+            if no_dm_vanilla_items and get_arena_crate_item_count() == 1 and state.arena.items_in_crate.jetpack then
+                no_dm_vanilla_items = false
+                state.arena.items_in_crate.jetpack = false
+            end
+        elseif state.screen == SCREEN.ARENA_MENU and state.screen_next ~= SCREEN.MENU then
+            no_dm_vanilla_items = get_arena_crate_item_count() == 0
+        end
+    end, ON.PRE_LOAD_SCREEN)
+    set_callback(function ()
+        if state.screen ~= SCREEN.ARENA_LEVEL then return end
+        for custom_type_id, selected_opt in pairs(custom_dm_item_settings) do
+            if selected_opt == ARENA_ITEM_SETTING.START_WITH
+                or selected_opt == ARENA_ITEM_SETTING.CRATE_START_WITH
+            then
+                for _, player in ipairs(players) do
+                    local custom_type = custom_types[custom_type_id]
+                    if custom_type.carry_type == CARRY_TYPE.POWERUP then
+                        module.set_custom_entity(player.uid, custom_type_id)
+                    else
+                        local uid = spawn_on_floor(custom_type.ent_type, player.abs_x, player.abs_y, player.layer)
+                        module.set_custom_entity(uid, custom_type_id)
+                        if custom_type.carry_type == CARRY_TYPE.HELD or custom_type.carry_type == CARRY_TYPE.BACK then
+                            player:pick_up(get_entity(uid))
+                        elseif custom_type.carry_type == CARRY_TYPE.MOUNT then
+                            carry(uid, player.uid)
+                        end
+                    end
+                end
+            end
+        end
+    end, ON.POST_LEVEL_GENERATION)
+    if not custom_container_item_spawns_set then
+        set_custom_container_item_spawns()
+    end
+    custom_dm_container_items_set = true
+end
+
+---Add settings and chances for the custom item to be on arena.
+---Make sure to have used `add_custom_entity_info` so the settings show the entity name
+---For powerups, use the powerup type instead of the pickup item
+---See also `enable_arena_customization_settings` or `draw_custom_arena_item_settings`
+---@param custom_ent_id integer
+function module.add_custom_item_to_arena(custom_ent_id)
+    if not custom_dm_container_items_set then
+        set_custom_arena_items_callbacks()
+    end
+    custom_dm_item_settings[custom_ent_id] = ARENA_ITEM_SETTING.DISABLED
+end
+
+---Draw settings for custom arena items. `enable_arena_customization_settings` might be preferable. Not recommended if importing the library with `import` since it can also show items from another mods
+---@param draw_ctx GuiDrawContext
+function module.draw_custom_arena_item_settings(draw_ctx)
+    draw_ctx:win_section("Arena items settings", function ()
+        -- edit the code at the end of this func if changing this
+        local all_options = {"Disabled", "Start with", "Crate", "Start with + Crate"}
+        local mount_options = {"Disabled", "Start with"}
+        local carried_options = {
+            [CARRY_TYPE.HELD] = all_options,
+            [CARRY_TYPE.BACK] = all_options,
+            [CARRY_TYPE.MOUNT] = mount_options,
+            [CARRY_TYPE.POWERUP] = all_options,
+        }
+
+        local changed_id = -1
+        for custom_type_id, _ in pairs(custom_dm_item_settings) do
+            local custom_type = custom_types[custom_type_id]
+            local name
+            if custom_type.custom_pickup_id and custom_types[custom_type.custom_pickup_id].entity_name then
+                name = custom_types[custom_type.custom_pickup_id].entity_name --[[@as string]]
+            else
+                name = custom_type.entity_name or "Unnamed entity"
+            end
+            if custom_type.carry_type and custom_type.custom_powerup_id == nil then
+                local old_setting = custom_dm_item_settings[custom_type_id]
+                custom_dm_item_settings[custom_type_id] = draw_ctx:win_combo(
+                    name,
+                    custom_dm_item_settings[custom_type_id],
+                    table.concat(carried_options[custom_type.carry_type], "\0") .. "\0\0"
+                ) --[[@as ARENA_ITEM_SETTING]]
+                local setting = custom_dm_item_settings[custom_type_id]
+                if
+                    old_setting ~= setting
+                    and (setting == ARENA_ITEM_SETTING.START_WITH
+                        or setting == ARENA_ITEM_SETTING.CRATE_START_WITH)
+                then
+                    changed_id = custom_type_id
+                end
+            end
+        end
+        if changed_id == -1 then return end
+        for custom_type_id, opt in pairs(custom_dm_item_settings) do
+            if
+                custom_type_id ~= changed_id
+                and custom_types[custom_type_id].carry_type == custom_types[changed_id].carry_type
+                and custom_types[custom_type_id].carry_type ~= CARRY_TYPE.POWERUP
+                and (opt == ARENA_ITEM_SETTING.START_WITH
+                    or opt == ARENA_ITEM_SETTING.CRATE_START_WITH)
+            then
+                -- Remove from "Start with"
+                custom_dm_item_settings[custom_type_id] = opt - 1 --[[@as ARENA_ITEM_SETTING]]
+                return
+            end
+        end
+    end)
+end
+
+---Register an option callback for custom items in arena. Recommended if importing the library with `import`. See also `draw_custom_arena_item_settings`
+function module.enable_arena_customization_settings()
+    if arena_customization_options_set then return end
+    arena_customization_options_set = true
+    ---@param draw_ctx GuiDrawContext
+    register_option_callback("_celib_arena_settings", false, function (draw_ctx)
+        module.draw_custom_arena_item_settings(draw_ctx)
+    end)
 end
 
 ---Add chance of a custom entity to be in a container

@@ -140,6 +140,24 @@ Spawn a FX_PICKUPEFFECT on player_uid, and set its texture and animation_frame. 
 
 I couldn't make the normal pickup to be purchasable without it giving the base pickup, so this spawns an entity that acts like a pickup, and manually handles buying it.
 
+### `nil add_custom_item_to_arena(int custom_ent_id)`
+
+Add settings and chances for the custom item to be on arena.
+
+Make sure to have used `add_custom_entity_info` so the settings show the entity name
+
+For powerups, use the powerup type instead of the pickup item
+
+See also `enable_arena_customization_settings` or `draw_custom_arena_item_settings`
+
+### `nil draw_custom_arena_item_settings(GuiDrawContext draw_ctx)`
+
+Draw settings for custom arena items. `enable_arena_customization_settings` might be preferable. Not recommended if importing the library with `import` since it can also show items from another mods
+
+### `nil enable_arena_customization_settings()`
+
+Register an option callback for custom items in arena. Recommended if importing the library with `import`. See also `draw_custom_arena_item_settings`
+
 ## Enums
 
 ### **CHANCE**
