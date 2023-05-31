@@ -78,7 +78,7 @@ local powerup_id = celib.new_custom_powerup(powerup_set_func, powerup_update_fun
 
 pickup_id = celib.new_custom_pickup(pickup_set_func, pickup_update_func, pickup_picked_func, powerup_id, ENT_TYPE.ITEM_PICKUP_COMPASS)
 celib.add_custom_entity_info(pickup_id, "Rainbower", TEXTURE.DATA_TEXTURES_FX_SMALL3_0, 8, 1500, 500)
-celib.set_powerup_drop(pickup_id)
+celib.set_powerup_drop(powerup_id, pickup_id)
 
 local purchasable_pickup_id = celib.new_custom_purchasable_pickup(pickup_set_func, pickup_update_func, pickup_id)
 
