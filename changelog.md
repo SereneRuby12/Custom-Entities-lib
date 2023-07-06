@@ -1,7 +1,7 @@
 # Version Changelog
 
 ## `1.1`
-- Added functions `add_custom_item_to_arena` and `enable_arena_customization_settings` to add custom items to arena easily, with settings through ImGUI
+- Added functions `add_custom_item_to_arena`, `enable_arena_customization_settings` and `draw_custom_arena_item_settings` to add custom items to arena easily, with settings through ImGUI
 - Updated `new_custom_gun` to use `pre_trigger_action`, making other entities able to use the weapon
 - Fixed bug on waddler levels
 - Fixed some issues with powerups on death with ankh
