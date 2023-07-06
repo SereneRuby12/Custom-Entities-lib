@@ -86,9 +86,12 @@ celib.add_custom_container_chance(pickup_id, celib.CHANCE.COMMON, celib.ALL_CONT
 
 celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.COMMON, celib.ALL_SHOPS, true)
 
+celib.add_custom_item_to_arena(powerup_id)
+celib.enable_arena_customization_settings()
+
 celib.init()
 
-set_callback(function()
+register_option_button('rainbower_spawn', 'spawn rainbower', '', function()
     local x, y, l = get_position(players[1].uid)
     celib.spawn_custom_entity(pickup_id, x, y, l, 0, 0)
-end, ON.START)
+end)

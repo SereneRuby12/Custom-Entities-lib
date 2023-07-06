@@ -60,6 +60,8 @@ c_ent_lib.add_custom_container_chance(parachute_back, c_ent_lib.CHANCE.LOW, {ENT
 c_ent_lib.add_custom_entity_crust_chance(parachute_back, 0.05)
 c_ent_lib.define_custom_entity_tilecode(parachute_back, "parachute_pack", true)
 
+c_ent_lib.add_custom_item_to_arena(parachute_back)
+c_ent_lib.enable_arena_customization_settings()
 
 register_option_button('parachutepack_spawn', 'spawn ParachutePack', '', function()
     local x, y, l = get_position(players[1].uid)
