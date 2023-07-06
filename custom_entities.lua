@@ -4,7 +4,6 @@ meta = {
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
---TODO: change backitem carry type to CARRY_TYPE.BACK
 
 local FLAGS_BIT = { --https://github.com/Mr-Auto/spelunky2-lua-libs/blob/main/libraries/flags/flags.lua
 0x1,
