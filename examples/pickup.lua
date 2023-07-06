@@ -78,7 +78,7 @@ local powerup_id = celib.new_custom_powerup(powerup_set_func, powerup_update_fun
 
 pickup_id = celib.new_custom_pickup(pickup_set_func, pickup_update_func, pickup_picked_func, powerup_id, ENT_TYPE.ITEM_PICKUP_COMPASS)
 celib.add_custom_entity_info(pickup_id, "Rainbower", TEXTURE.DATA_TEXTURES_FX_SMALL3_0, 8, 1500, 500)
-celib.set_powerup_drop(pickup_id)
+celib.set_powerup_drop(powerup_id, pickup_id)
 
 local purchasable_pickup_id = celib.new_custom_purchasable_pickup(pickup_set_func, pickup_update_func, pickup_id)
 
@@ -86,9 +86,12 @@ celib.add_custom_container_chance(pickup_id, celib.CHANCE.COMMON, celib.ALL_CONT
 
 celib.add_custom_shop_chance(purchasable_pickup_id, celib.CHANCE.COMMON, celib.ALL_SHOPS, true)
 
+celib.add_custom_item_to_arena(powerup_id)
+celib.enable_arena_customization_settings()
+
 celib.init()
 
-set_callback(function()
+register_option_button('rainbower_spawn', 'spawn rainbower', '', function()
     local x, y, l = get_position(players[1].uid)
     celib.spawn_custom_entity(pickup_id, x, y, l, 0, 0)
-end, ON.START)
+end)

@@ -1,5 +1,15 @@
 # Version Changelog
 
+## `1.1`
+- Added functions `add_custom_item_to_arena`, `enable_arena_customization_settings` and `draw_custom_arena_item_settings` to add custom items to arena easily, with settings through ImGUI
+- Updated `new_custom_gun` to use `pre_trigger_action`, making other entities able to use the weapon
+- Fixed bug on waddler levels
+- Fixed some issues with powerups on death with ankh
+- Fixed an issue with the pickup example
+- Fixed issue when using instant restart while holding a custom item
+- Lil bomber now only spawns big bombs when having powerpack as backitem
+- Note: This update should be fully compatible with previous versions
+
 ## `1.0b`
 - Changed `ON.LOADING` callback to `ON.PRE_LOAD_SCREEN`, custom entities shouldn't be lost on transition due to frame drops
 - Warping to another level (no transition) now preserves the custom entities

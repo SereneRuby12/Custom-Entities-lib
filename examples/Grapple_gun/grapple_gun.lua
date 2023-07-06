@@ -244,6 +244,8 @@ celib.add_custom_shop_chance(grapple_id, celib.CHANCE.LOW, {celib.SHOP_TYPE.SPEC
 celib.add_custom_container_chance(grapple_id, celib.CHANCE.LOW, {ENT_TYPE.ITEM_CRATE, ENT_TYPE.ITEM_PRESENT})
 celib.add_custom_entity_crust_chance(grapple_id, 0.05)
 celib.define_custom_entity_tilecode(grapple_id, "grapple_gun", true)
+celib.add_custom_item_to_arena(grapple_id)
+celib.enable_arena_customization_settings()
 
 celib.init()
 
