@@ -242,8 +242,6 @@ celib.set_powerup_drop(powerup_id, pickup_id)
 celib.add_custom_entity_info(pickup_id, "Spectral Mirror", mirror_texture_id, 0, 15000, 1500)
 celib.add_custom_entity_crust_chance(pickup_id, 0.025)
 celib.define_custom_entity_tilecode(pickup_id, "spectral_mirror", true)
-celib.add_custom_item_to_arena(powerup_id)
-celib.enable_arena_customization_settings()
 
 local purchasable_pickup_id = celib.new_custom_purchasable_pickup(pickup_set_func, pickup_update_func, pickup_id)
 
