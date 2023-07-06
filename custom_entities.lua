@@ -63,7 +63,7 @@ local module = {}
 ---@type CustomEntityType[]
 local custom_types = {}
 
-local cb_update, cb_pre_load, cb_transition, cb_pre_level_gen, cb_post_level_gen, cb_clonegunshot = -1, -1, -1, -1, -1, -1
+local cb_update, cb_pre_load, cb_pre_level_gen, cb_post_level_gen, cb_clonegunshot = -1, -1, -1, -1, -1, -1
 local didnt_init = true
 
 ---@class TransitionInfo
@@ -278,9 +278,11 @@ local function _set_custom_entity(uid, ent, custom_type_id, c_data, optional_arg
             c_data._lib_callbacks[#c_data._lib_callbacks+1] = set_pre_statemachine(uid, custom_type.update)
         end
         set_on_kill(uid, function()
-            unset_custom_entity(uid, c_data, custom_type)
-            if custom_type.after_destroy_callback then
-                custom_type.after_destroy_callback(c_data, uid)
+            if not entity_has_item_type(ent.uid, ENT_TYPE.ITEM_POWERUP_ANKH) then
+                unset_custom_entity(uid, c_data, custom_type)
+                if custom_type.after_destroy_callback then
+                    custom_type.after_destroy_callback(c_data, uid)
+                end
             end
         end)
     end
@@ -388,7 +390,9 @@ local function set_custom_ents_from_previous(companions)
                 elseif info.carry_type == CARRY_TYPE.POWERUP then
                     custom_ent = p
                 end
-                _set_custom_entity(custom_ent.uid, custom_ent, info.custom_type_id, info.data)
+                if custom_ent ~= nil then
+                    _set_custom_entity(custom_ent.uid, custom_ent, info.custom_type_id, info.data)
+                end
                 break
             end
         end
@@ -494,20 +498,21 @@ function module.custom_init(game_frame, not_handle_clonegun)
         if (state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP)
             or (state.screen_next == SCREEN.SPACESHIP)
             or (state.screen == SCREEN.LEVEL and state.screen_next == SCREEN.LEVEL)
+            or (state.screen_next == SCREEN.WIN or state.screen_next == SCREEN.CONSTELLATION)
         then
-            local is_storage_floor_there = get_entities_by(ENT_TYPE.FLOOR_STORAGE, MASK.FLOOR, LAYER.BOTH)[1] ~= nil
-            if state.loading == 2 then
+            if state.quest_flags & 1 == 0 then
+                local is_storage_floor_there = get_entities_by(ENT_TYPE.FLOOR_STORAGE, MASK.FLOOR, LAYER.BOTH)[1] ~= nil
                 local hh_info_cache = {}
                 for c_id,c_type in ipairs(custom_types) do
                     for uid, c_data in pairs(c_type.entities) do
-                        if c_type.carry_type == CARRY_TYPE.HELD then
-                            ---@type Movable
-                            local ent = get_entity(uid)
+                        if c_type.carry_type == CARRY_TYPE.HELD or c_type.carry_type == CARRY_TYPE.BACK then
+                            local ent = get_entity(uid) --[[@as Movable]]
+                            ---@type Player
                             local holder
                             if not ent or ent.state == 24 or ent.last_state == 24 then
                                 holder = c_data.last_holder
                             else
-                                holder = ent.overlay
+                                holder = ent.overlay --[[@as Player]]
                             end
                             if holder and holder.type.search_flags & MASK.PLAYER == MASK.PLAYER then
                                 if c_data.is_worn_backitem or holder:worn_backitem() == uid then
@@ -517,28 +522,28 @@ function module.custom_init(game_frame, not_handle_clonegun)
                                 else
                                     set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
                                 end
-                            elseif ent and is_storage_floor_there and ent.standing_on_uid and get_entity(ent.standing_on_uid).type.id == ENT_TYPE.FLOOR_STORAGE then
+                            elseif ent and is_storage_floor_there and ent.standing_on_uid ~= -1 and get_entity(ent.standing_on_uid).type.id == ENT_TYPE.FLOOR_STORAGE then
                                 set_transition_info_storage(c_id, c_data, ent.type.id)
                             end
                         elseif c_type.carry_type == CARRY_TYPE.MOUNT then
-                            ---@type Mount
-                            local ent = get_entity(uid)
+                            local ent = get_entity(uid) --[[@as Mount]]
+                            ---@type Player
                             local holder, rider_uid
                             if not ent or ent.state == 24 or ent.last_state == 24 then
                                 holder = c_data.last_holder
                                 rider_uid = c_data.last_rider_uid
                             else
-                                holder = ent.overlay
+                                holder = ent.overlay --[[@as Player]]
                                 rider_uid = ent.rider_uid
                             end
-                            if holder then
+                            if holder and holder.type.search_flags & MASK.PLAYER == MASK.PLAYER then
                                 if holder.inventory.player_slot == -1 then
                                     set_transition_info_hh(c_id, c_data, holder.type.id, holder.uid, hh_info_cache)
                                 else
                                     set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.HELD)
                                 end
                             elseif rider_uid and rider_uid ~= -1 then
-                                holder = get_entity(rider_uid)
+                                holder = get_entity(rider_uid) --[[@as Player]]
                                 if holder and holder.type.search_flags == MASK.PLAYER then
                                     set_transition_info(c_id, c_data, holder.inventory.player_slot, CARRY_TYPE.MOUNT)
                                 end
@@ -552,33 +557,31 @@ function module.custom_init(game_frame, not_handle_clonegun)
                         end
                     end
                 end
-            end
-            if custom_entities_t_info_cog_ankh[1] then
-                for _, info in ipairs(custom_entities_t_info_cog_ankh) do
-                    set_transition_info(info.custom_type_id, info.data, info.slot, CARRY_TYPE.POWERUP)
+                if custom_entities_t_info_cog_ankh[1] then
+                    for _, info in ipairs(custom_entities_t_info_cog_ankh) do
+                        set_transition_info(info.custom_type_id, info.data, info.slot, CARRY_TYPE.POWERUP)
+                    end
                 end
-            end
-            custom_entities_t_info_cog_ankh = {}
-            for _,c_type in ipairs(custom_types) do
-                c_type.entities = {}
+                custom_entities_t_info_cog_ankh = {}
+                for _,c_type in ipairs(custom_types) do
+                    c_type.entities = {}
+                end
             end
         end
     end, ON.PRE_LOAD_SCREEN)
 
-    cb_transition = set_callback(function()
-        local companions = get_entities_by(0, MASK.PLAYER, LAYER.FRONT)
-        set_custom_ents_from_previous(companions)
-    end, ON.TRANSITION)
-
     cb_post_level_gen = set_callback(function()
-        if state.screen == 12 then
+        if state.screen == SCREEN.LEVEL then
             local px, py, pl = get_position(players[1].uid)
             local companions = get_entities_at(0, MASK.PLAYER, px, py, pl, 2)
             set_custom_ents_from_previous(companions)
             custom_entities_t_info = {}
             custom_entities_t_info_hh = {}
+        elseif state.screen == SCREEN.TRANSITION or state.screen == SCREEN.SCORES or state.screen == SCREEN.WIN  then
+            local companions = get_entities_by(0, MASK.PLAYER, LAYER.FRONT)
+            set_custom_ents_from_previous(companions)
         end
-    end, ON.POST_LEVEL_GENERATION)
+    end, ON.POST_LOAD_SCREEN)
 
     cb_pre_level_gen = set_callback(function()
         shops_by_room_pos = {}
@@ -600,7 +603,6 @@ end
 function module.stop()
     clear_callback(cb_update)
     clear_callback(cb_pre_load)
-    clear_callback(cb_transition)
     clear_callback(cb_post_level_gen)
     clear_callback(cb_pre_level_gen)
     clear_callback(cb_clonegunshot)
@@ -652,7 +654,7 @@ local function _new_custom_entity(set_func, _update_func, update_callback, carry
         update_func = function(entity)
             local custom_type = custom_types[custom_id]
             local c_data = custom_type.entities[entity.uid]
-            _update_func(entity, c_data, custom_type)
+            _update_func(entity, c_data, custom_type, custom_id)
         end
     end
     custom_types[custom_id] = {
@@ -676,7 +678,7 @@ end
 ---@return integer
 function module.new_custom_entity(set_func, update_func, carry_type, ent_type, update_type)
     local update
-    if carry_type == CARRY_TYPE.HELD then
+    if carry_type == CARRY_TYPE.HELD or carry_type == CARRY_TYPE.BACK then
         update = update_custom_held
     elseif carry_type == CARRY_TYPE.MOUNT then
         update = update_custom_mount
@@ -1031,7 +1033,7 @@ function module.new_custom_backpack(set_func, update_func, flammable, update_typ
         end
         update = custom_back_nonflammable_update
     end
-    local custom_id = _new_custom_entity(set, update, update_func, CARRY_TYPE.HELD, ENT_TYPE.ITEM_JETPACK, update_type)
+    local custom_id = _new_custom_entity(set, update, update_func, CARRY_TYPE.BACK, ENT_TYPE.ITEM_JETPACK, update_type)
     return custom_id
 end
 
@@ -1113,7 +1115,7 @@ function module.add_player_item_draw(player_num, item_draw_info)
     return new_pos
 end
 
-local function custom_powerup_update(ent, c_data, c_type, _, c_type_id)
+local function custom_powerup_update(ent, c_data, c_type, c_type_id)
     c_type.update_callback(ent, c_data)
     if test_flag(ent.flags, ENT_FLAG.DEAD) then
         if not entity_has_item_type(ent.uid, ENT_TYPE.ITEM_POWERUP_ANKH) then
@@ -1121,8 +1123,8 @@ local function custom_powerup_update(ent, c_data, c_type, _, c_type_id)
                 local x, y, l = get_position(ent.uid)
                 module.spawn_custom_entity(c_type.custom_pickup_id, x, y, l, prng:random_float(PRNG_CLASS.PARTICLES)*0.2-0.1, 0.1)
             end
+            unset_custom_entity(ent.uid, c_data, c_type)
         end
-        c_type.entities[ent.uid] = nil
     else
         if state.theme == THEME.CITY_OF_GOLD and ent.idle_counter == 19 and ent.standing_on_uid ~= -1 and ent:standing_on().type.id == ENT_TYPE.FLOOR_ALTAR and ent:has_powerup(ENT_TYPE.ITEM_POWERUP_ANKH) and ent.stun_timer > 0 then
             custom_entities_t_info_cog_ankh[#custom_entities_t_info_cog_ankh+1] = {
@@ -1130,7 +1132,7 @@ local function custom_powerup_update(ent, c_data, c_type, _, c_type_id)
                 data = c_data,
                 slot = ent.inventory.player_slot
             }
-            c_type.entities[ent.uid] = nil
+            unset_custom_entity(ent.uid, c_data, c_type)
         end
     end
 end
@@ -1768,6 +1770,7 @@ local function set_entity_crust_callbacks()
     if custom_container_item_spawns_set then
         set_custom_container_item_spawns()
     end
+    entity_crust_callbacks_set = true
 end
 
 ---Add chance for an item to be in crust, **must have used** `add_custom_entity_info` so it can use the correct texture
