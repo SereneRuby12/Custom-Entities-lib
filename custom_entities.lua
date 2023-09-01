@@ -1,6 +1,6 @@
 meta = {
     name = "Custom-Entities-Library",
-    version = "1.1",
+    version = "1.1a",
     author = "Estebanfer",
     description = "A library for creating custom entities"
 }
@@ -1137,7 +1137,7 @@ local function custom_powerup_update(ent, c_data, c_type, c_type_id)
 end
 
 ---Create a new custom entity type that is a powerup, the functions will be called on the player
----Not passing texture id will omit the library draw function of the powerup
+---Not passing texture_id (or passing as nil) will omit the library draw function of the powerup
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
 ---@param texture_id? integer

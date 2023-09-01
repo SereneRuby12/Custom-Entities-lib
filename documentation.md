@@ -124,7 +124,7 @@ The custom item that will replace it must have a ent_type assinged (custom backp
 
 Create a new powerup for players, the last params (texture, row, etc.) are for the item rendering on the HUD. Make sure to use `set_powerup_drop()` after creating the pickup, it will spawn the pickup when a player dies and playing local multiplayer.
 
-You can skip passing the texture_id and params after to make the library to not render the powerup on the HUD.
+You can skip passing the texture_id and params after (or pass as nil) to make the library to not render the powerup on the HUD.
 
 ### `nil set_powerup_drop(int powerup_id, int pickup_id)`
 
