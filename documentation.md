@@ -120,9 +120,11 @@ Spawns a rock, and changes some properties to make it look like a backpack, spaw
 
 The custom item that will replace it must have a ent_type assinged (custom backpacks have ITEM_JETPACK by default).
 
-### `int id new_custom_powerup(function(entity, transition_data, custom_id, args?) set_func, function(entity, custom_ent_info) updatefunc, int texture_id, int row, int column, optional\<Color\> color)`
+### `int id new_custom_powerup(function(entity, transition_data, custom_id, args?) set_func, function(entity, custom_ent_info) updatefunc, int texture_id?, int row?, int column?, Color color?)`
 
 Create a new powerup for players, the last params (texture, row, etc.) are for the item rendering on the HUD. Make sure to use `set_powerup_drop()` after creating the pickup, it will spawn the pickup when a player dies and playing local multiplayer.
+
+You can skip passing the texture_id and params after to make the library to not render the powerup on the HUD.
 
 ### `nil set_powerup_drop(int powerup_id, int pickup_id)`
 

@@ -1137,19 +1137,27 @@ local function custom_powerup_update(ent, c_data, c_type, c_type_id)
 end
 
 ---Create a new custom entity type that is a powerup, the functions will be called on the player
+---Not passing texture id will omit the library draw function of the powerup
 ---@param set_func EntSet @Called when the entity is set manually, on transitions, and when cloned
 ---@param update_func EntUpdate @Called on `FRAME` or `GAMEFRAME`, depending on the init
----@param texture_id integer
----@param row integer
----@param column integer
+---@param texture_id? integer
+---@param row? integer
+---@param column? integer
 ---@param color? userdata
 ---@return integer
 function module.new_custom_powerup(set_func, update_func, texture_id, row, column, color, update_type)
-    local item_draw_info = module.new_item_draw_info(texture_id, row, column, color)
+    local set
+    if texture_id then
+        ---@cast row integer
+        ---@cast column integer
+        local item_draw_info = module.new_item_draw_info(texture_id, row, column, color)
 
-    local set = function(ent, c_data, c_type_id, args)
-        module.add_player_item_draw(ent.inventory.player_slot, item_draw_info)
-        return set_func(ent, c_data, c_type_id, args)
+        set = function(ent, c_data, c_type_id, args)
+            module.add_player_item_draw(ent.inventory.player_slot, item_draw_info)
+            return set_func(ent, c_data, c_type_id, args)
+        end
+    else
+        set = set_func
     end
     local custom_id, custom_type = _new_custom_entity(set, custom_powerup_update, update_func, CARRY_TYPE.POWERUP, nil, update_type)
     custom_type.item_draw_info = item_draw_info

@@ -1,5 +1,8 @@
 # Version Changelog
 
+## `1.1a`
+- Made `new_new_custom_powerup` function to not need `texture_id` as param, to be able to create powerups without rendering of the library on the hud
+
 ## `1.1`
 - Added functions `add_custom_item_to_arena`, `enable_arena_customization_settings` and `draw_custom_arena_item_settings` to add custom items to arena easily, with settings through ImGUI
 - Updated `new_custom_gun` to use `pre_trigger_action`, making other entities able to use the weapon
