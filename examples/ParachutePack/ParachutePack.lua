@@ -1,11 +1,11 @@
 meta = {
     name = "ParachutePack",
     version = "1.0",
-    author = "Estebanfer",
+    author = "SereneRuby12",
     description = "Adds a new backpack with infinite parachutes"
 }
 
-local c_ent_lib = import("estebanfer/custom-entities-library")
+local c_ent_lib = import("SereneRuby12/custom-entities-library")
 --local c_ent_lib = require "custom_entities"
 
 local parachute_texture_id

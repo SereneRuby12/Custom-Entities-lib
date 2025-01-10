@@ -1,11 +1,11 @@
 meta = {
     name = "Grapple Gun",
     version = "1.0",
-    author = "Estebanfer",
+    author = "SereneRuby12",
     description = "Adds a grapple gun to the game. Sprite from The Henry Stickmin Collection"
 }
 
-local celib = import("estebanfer/custom-entities-library")
+local celib = import("SereneRuby12/custom-entities-library")
 --local celib = require "custom_entities"
 
 local grapple_texture_id

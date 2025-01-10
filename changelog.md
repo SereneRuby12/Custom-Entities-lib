@@ -43,7 +43,7 @@
 - Removed messpect that will probably never be used
 
 ## `1.0-rc1`
-- This version might have some issues due to having exports, if you want to use exports and have the lib as a mod, use something like `local celib = import("Estebanfer/custom-entities-library")`, or if you want to have the lib in your mod folder, remove the line of exports as said below to prevent possible issues
+- This version might have some issues due to having exports, if you want to use exports and have the lib as a mod, use something like `local celib = import("SereneRuby12/custom-entities-library")`, or if you want to have the lib in your mod folder, remove the line of exports as said below to prevent possible issues
 - Returning a table should no longer be required on the custom entity set function
 - Fixed some bugs: args not being passed on some extra custom entities, and custom backitems showing errors when entering a portal
 - Added UPDATE_TYPE, as last parameter of new_custom_entity, you can just ignore it to use the normal update on frame, or use POST_STATEMACHINE or PRE_STATEMACHINE, and the update function will be called on the one you chose

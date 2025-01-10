@@ -1,11 +1,11 @@
 meta = {
     name = "Purchasable backpack example",
     version = "WIP",
-    author = "Estebanfer",
+    author = "SereneRuby12",
     description = "Example of a purchasable backpack"
 }
 
-local c_ent_lib = import("estebanfer/custom-entities-library")
+local c_ent_lib = import("SereneRuby12/custom-entities-library")
 --local c_ent_lib = require "custom_entities"
 
 local colors = {'r', 'g', 'b'}

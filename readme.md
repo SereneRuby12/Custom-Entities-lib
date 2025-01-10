@@ -6,7 +6,7 @@ A library to easily make new entities, focused on items (and mounts), but works 
 
 ### First, import the lib and make a function when the custom entity will be spawned
 ```lua
-local celib = import("estebanfer/custom-entities-library")
+local celib = import("SereneRuby12/custom-entities-library")
 --local celib = require "custom_entities" --You can use this one if you want to include the library in your mod rather than people having to download it, but might cause some issues with pickups, and would not be the most optimized way if the player uses more custom entities
 
 local function custom_ent_set(entity)
@@ -54,15 +54,15 @@ end
 There are two ways of spawning a custom entity, that are basically the same: using the spawn function from the lib, or spawning the entity and making it to be a custom entity.
 
 ## Check the documentation page there:
-[Documentation](https://github.com/estebanfer/Custom-Entities-lib/blob/master/documentation.md)
+[Documentation](https://github.com/SereneRuby12/Custom-Entities-lib/blob/master/documentation.md)
 
 ## Check the changelog there:
-[Changelog](https://github.com/estebanfer/Custom-Entities-lib/blob/master/changelog.md)
+[Changelog](https://github.com/SereneRuby12/Custom-Entities-lib/blob/master/changelog.md)
 
 ## And look for the examples there:
 - [Some random custom entities](examples/example.lua)
-- [Custom gun](examples/Grapple_gun/grapple_gun.lua)
-- [Custom gun2](examples/lil_bomber_item_example/lil_bomber.lua)
-- [Custom backpack](examples/ParachutePack.lua)
+- [Custom gun](examples/GrappleGun/grapple_gun.lua)
+- [Custom gun2](examples/LilBomber/lil_bomber.lua)
+- [Custom backpack](examples/ParachutePack/ParachutePack.lua)
 - [Custom pickup](examples/pickup.lua)
-- [Another custom pickup](examples/pickup2.lua)
+- [Another custom pickup](examples/ParachutePack/playerghost_pickup.lua)

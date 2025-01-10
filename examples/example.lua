@@ -1,11 +1,11 @@
 meta = {
     name = "Custom Entities Lib example",
     version = "WIP",
-    author = "Estebanfer",
+    author = "SereneRuby12",
     description = "Color changing snakes, explsive rocks, and rgb turkeys"
 }
 
---local c_ent_lib = import("estebanfer/custom-entities-library")
+--local c_ent_lib = import("SereneRuby12/custom-entities-library")
 local c_ent_lib = require "custom_entities" --You can use require to get autocompletion, and then change it to import when the mod is ready
 
 local function mycustom_set(ent, data)

@@ -1,11 +1,11 @@
 meta = {
     name = "Spectral Mirror pickup",
     version = "1.0",
-    author = "Estebanfer",
+    author = "SereneRuby12",
     description = "Adds a pickup that allows you to control your ghost without dying. Toggle with DOOR button"
 }
 
-local celib = import("estebanfer/custom-entities-library")
+local celib = import("SereneRuby12/custom-entities-library")
 --local celib = require "custom_entities"
 
 local ghost_id, powerup_id, pickup_id

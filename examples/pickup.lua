@@ -1,11 +1,11 @@
 meta = {
     name = "Rainbower",
     version = "1.0",
-    author = "Estebanfer",
+    author = "SereneRuby12",
     description = "Example custom pickup that makes you rainbow"
 }
 
-local celib = import("estebanfer/custom-entities-library")
+local celib = import("SereneRuby12/custom-entities-library")
 --local celib = require "custom_entities"
 
 local colors = {'r', 'g', 'b'}

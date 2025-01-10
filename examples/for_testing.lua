@@ -1,8 +1,8 @@
 meta = {
     name = "Testing stuff",
     version = "WIP",
-    author = "Estebanfer",
-    description = "Not really an example an pretty outdated"
+    author = "SereneRuby12",
+    description = "Not really an example and pretty outdated"
 }
 
 local c_ent_lib = require "custom_entities"

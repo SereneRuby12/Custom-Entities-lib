@@ -203,8 +203,8 @@ A table containing crate, present, and ghist present containers
 
 ## Some examples
 - [Some random custom entities](examples/example.lua)
-- [Custom gun](examples/Grapple_gun/grapple_gun.lua)
-- [Custom gun2](examples/lil_bomber_item_example/lil_bomber.lua)
-- [Custom backpack](examples/ParachutePack.lua)
+- [Custom gun](examples/GrappleGun/grapple_gun.lua)
+- [Custom gun2](examples/LilBomber/lil_bomber.lua)
+- [Custom backpack](examples/ParachutePack/ParachutePack.lua)
 - [Custom pickup](examples/pickup.lua)
-- [Another custom pickup](examples/pickup2.lua)
+- [Another custom pickup](examples/ParachutePack/playerghost_pickup.lua)
