@@ -1045,21 +1045,31 @@ function module.new_custom_backpack(set_func, update_func, flammable, update_typ
 end
 
 local player_items_draw = {{}, {}, {}, {}}
-local item_height = 0.04 * (16.0/9.0)
-local item_hud_color = Color:white()
-item_hud_color.a = 0.4
+local ITEM_WIDTH = 0.05
+local ITEM_HEIGHT = ITEM_WIDTH * (16.0/9.0)
+local HUD_SIZE_OFFSETS = {[0] = 0, [1] = 0.005, [2] = 0.005}
+local HUD_SIZE_PLAYER_OFFSETS = {[0] = 0, [1] = 0.05, [2] = 0.065}
+local ITEM_HUD_COLOR = Color:white()
 
 local function set_item_draw_callbacks()
     if not item_draw_callbacks_set then
         local invisible_hud = get_setting(GAME_SETTING.HUD_STYLE) == 3
         ---@param render_ctx VanillaRenderContext
-        set_callback(function(render_ctx)
-            if not invisible_hud and not test_flag(state.pause, 1) and state.level_flags & (FLAGS_BIT[21] | FLAGS_BIT[22]) == 0 and state.screen ~= SCREEN.SCORES and state.screen ~= SCREEN.RECAP then --(state.screen == SCREEN.LEVEL or state.screen == SCREEN.CAMP) then --state.paused is probably flags, 1 is the pause menu
+        ---@param hud Hud
+        set_callback(function(render_ctx, hud)
+            if not invisible_hud and (hud.y < 1.1449 and hud.opacity > 0) and state.screen ~= SCREEN.SCORES and state.screen ~= SCREEN.RECAP then
+                local scale_setting = hud.data.inventory[4].enabled and 0 or get_setting(GAME_SETTING.HUD_SIZE)
+                local width, height = ITEM_WIDTH + (0.006 * scale_setting), ITEM_HEIGHT + ((0.006*(16.0/9.0)) * scale_setting)
+                -- Make it decrease in opacity as it goes up to make it leave smoothly, since it doesn't reach outside the screen with just hud.y
+                local alpha_mult = 1.0
+                if hud.y > 0.95 then alpha_mult = math.max(0, 1 - ((hud.y - 0.95) / 0.195)) end
                 for i, v in ipairs(player_items_draw) do
+                    local player_slot_offset = -0.957 + HUD_SIZE_OFFSETS[scale_setting] + ((i-1)*(0.32+HUD_SIZE_PLAYER_OFFSETS[scale_setting]))
                     for i1, draw_info in ipairs(v) do
-                        local y1, x1 = 0.74, -0.95+((i1-1)*0.04)+((i-1)*0.32)
-                        --render_ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_HUD_1, 1, 0, x1, y1, x1 + 0.04, y1 - (0.04 * (16.0/9.0)), item_hud_color)
-                        render_ctx:draw_screen_texture(draw_info.texture_id, draw_info.row, draw_info.column, x1, y1, x1 + 0.04, y1 - item_height, draw_info.color)
+                        local item_offset = ((i1-1)*(width*0.8))
+                        local y1, x1 = hud.y-0.12 - (0.01 * scale_setting), player_slot_offset + item_offset
+                        draw_info.color.a = hud.opacity * hud.data.opacity * hud.data.players[i].opacity * alpha_mult
+                        render_ctx:draw_screen_texture(draw_info.texture_id, draw_info.row, draw_info.column, x1, y1, x1 + width, y1 - height, draw_info.color)
                     end
                 end
             end
@@ -1102,7 +1112,7 @@ end
 ---@param color? userdata
 ---@return table
 function module.new_item_draw_info(texture_id, row, column, color)
-    color = color ~= nil and color or item_hud_color
+    color = color ~= nil and color or ITEM_HUD_COLOR
     return {
         texture_id = texture_id,
         row = row,
