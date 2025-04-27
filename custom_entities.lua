@@ -494,12 +494,18 @@ function module.custom_init(game_frame, not_handle_clonegun)
     end
 
     cb_pre_load = set_callback(function()
-        if (state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP)
-            or (state.screen_next == SCREEN.SPACESHIP)
-            or (state.screen == SCREEN.LEVEL and state.screen_next == SCREEN.LEVEL)
-            or (state.screen_next == SCREEN.WIN or state.screen_next == SCREEN.CONSTELLATION)
-        then
-            if state.quest_flags & 1 == 0 then
+        if state.screen == SCREEN.OPTIONS then return end
+
+        if test_flag(state.quest_flags, QUEST_FLAG.RESET) then
+            custom_entities_t_info = {}
+            custom_entities_t_info_hh = {}
+            custom_entities_t_info_storage = {}
+        else
+            if (state.screen_next == SCREEN.TRANSITION and state.screen ~= SCREEN.SPACESHIP)
+                or (state.screen_next == SCREEN.SPACESHIP)
+                or (state.screen == SCREEN.LEVEL and state.screen_next == SCREEN.LEVEL)
+                or (state.screen_next == SCREEN.WIN or state.screen_next == SCREEN.CONSTELLATION)
+            then
                 local is_storage_floor_there = get_entities_by(ENT_TYPE.FLOOR_STORAGE, MASK.FLOOR, LAYER.BOTH)[1] ~= nil
                 local hh_info_cache = {}
                 for c_id,c_type in ipairs(custom_types) do
@@ -570,6 +576,8 @@ function module.custom_init(game_frame, not_handle_clonegun)
     end, ON.PRE_LOAD_SCREEN)
 
     cb_post_level_gen = set_callback(function()
+        if state.screen_last == SCREEN.OPTIONS then return end
+
         if state.screen == SCREEN.LEVEL then
             local px, py, pl = get_position(players[1].uid)
             local companions = get_entities_at(0, MASK.PLAYER, px, py, pl, 2)
@@ -1046,7 +1054,7 @@ local function set_item_draw_callbacks()
         local invisible_hud = get_setting(GAME_SETTING.HUD_STYLE) == 3
         ---@param render_ctx VanillaRenderContext
         set_callback(function(render_ctx)
-            if not invisible_hud and not test_flag(state.pause, 1) and state.level_flags & (FLAGS_BIT[21] | FLAGS_BIT[22]) == 0 then --(state.screen == SCREEN.LEVEL or state.screen == SCREEN.CAMP) then --state.paused is probably flags, 1 is the pause menu
+            if not invisible_hud and not test_flag(state.pause, 1) and state.level_flags & (FLAGS_BIT[21] | FLAGS_BIT[22]) == 0 and state.screen ~= SCREEN.SCORES and state.screen ~= SCREEN.RECAP then --(state.screen == SCREEN.LEVEL or state.screen == SCREEN.CAMP) then --state.paused is probably flags, 1 is the pause menu
                 for i, v in ipairs(player_items_draw) do
                     for i1, draw_info in ipairs(v) do
                         local y1, x1 = 0.74, -0.95+((i1-1)*0.04)+((i-1)*0.32)
@@ -1078,7 +1086,7 @@ local function set_item_draw_callbacks()
 
         set_callback(function()
             player_items_draw = {{}, {}, {}, {}}
-        end, ON.PRE_LEVEL_GENERATION)
+        end, ON.PRE_LEVEL_CREATION)
 
         set_callback(function()
             invisible_hud = get_setting(GAME_SETTING.HUD_STYLE) == 3
@@ -1103,7 +1111,7 @@ function module.new_item_draw_info(texture_id, row, column, color)
     }
 end
 
----add an item to be drawn on a player HUD, is cleared ON.PRE_LEVEL_GENERATION
+---add an item to be drawn on a player HUD, is cleared ON.PRE_LEVEL_CREATION
 ---@param player_num integer
 ---@param item_draw_info table @Created with new_item_draw_info
 ---@return integer @returns position of `player_items_draw[player_num]` where the item will be drawn
