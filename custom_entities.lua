@@ -252,6 +252,13 @@ module.UPDATE_TYPE = {
     PRE_STATEMACHINE = 2
 }
 
+local function drop_on_death_pickup(uid, custom_pickup_id)
+    if state.items.player_count ~= 1 then
+        local x, y, l = get_position(uid)
+        module.spawn_custom_entity(custom_pickup_id, x, y, l, prng:random_float(PRNG_CLASS.PARTICLES)*0.2-0.1, 0.1)
+    end
+end
+
 local function unset_custom_entity(uid, c_data, custom_type)
     if c_data._lib_callbacks then
         for _, callback in pairs(c_data._lib_callbacks) do
@@ -276,8 +283,11 @@ local function _set_custom_entity(uid, ent, custom_type_id, c_data, optional_arg
         else
             c_data._lib_callbacks[#c_data._lib_callbacks+1] = set_pre_statemachine(uid, custom_type.update)
         end
-        set_on_kill(uid, function()
-            if not entity_has_item_type(ent.uid, ENT_TYPE.ITEM_POWERUP_ANKH) then
+        c_data._lib_callbacks[#c_data._lib_callbacks+1] = set_on_kill(uid, function()
+            if not entity_has_item_type(uid, ENT_TYPE.ITEM_POWERUP_ANKH) then
+                if custom_type.custom_pickup_id then
+                    drop_on_death_pickup(uid, custom_type.custom_pickup_id)
+                end
                 unset_custom_entity(uid, c_data, custom_type)
                 if custom_type.after_destroy_callback then
                     custom_type.after_destroy_callback(c_data, uid)
@@ -1136,10 +1146,7 @@ local function custom_powerup_update(ent, c_data, c_type, c_type_id)
     c_type.update_callback(ent, c_data)
     if test_flag(ent.flags, ENT_FLAG.DEAD) then
         if not entity_has_item_type(ent.uid, ENT_TYPE.ITEM_POWERUP_ANKH) then
-            if state.items.player_count ~= 1 then
-                local x, y, l = get_position(ent.uid)
-                module.spawn_custom_entity(c_type.custom_pickup_id, x, y, l, prng:random_float(PRNG_CLASS.PARTICLES)*0.2-0.1, 0.1)
-            end
+            drop_on_death_pickup(ent.uid, c_type.custom_pickup_id)
             unset_custom_entity(ent.uid, c_data, c_type)
         end
     else
