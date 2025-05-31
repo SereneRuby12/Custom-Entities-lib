@@ -1,5 +1,12 @@
 # Version Changelog
 
+## `1.1c`
+- Fix pickup drops on death when using non FRAME custom powerup update
+
+## `1.1b`
+- Improve powerup rendering, it now resizes correctly to different HUD sizes, and moves with it
+- Fix items staying after win, fix some powerup render issues at win screens
+
 ## `1.1a`
 - Made `new_new_custom_powerup` function to not need `texture_id` as param, to be able to create powerups without rendering of the library on the hud
 
