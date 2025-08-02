@@ -922,8 +922,12 @@ function module.new_custom_purchasable_back(set_func, update_func, toreplace_cus
             ent.hitboxx = 0.3
             ent.hitboxy = 0.35
             ent.offsety = -0.03
+            local uid = ent.uid
             set_timeout(function()
-                custom_type.entities[ent.uid].shop_owner = ent.last_owner_uid
+                local ent = get_entity(uid)
+                if ent and custom_type.entities[uid] then
+                    custom_type.entities[uid].shop_owner = ent.last_owner_uid
+                end
             end, 1)
             return set_func(ent, c_data, c_type_id, args)
         end
@@ -1201,7 +1205,12 @@ local function custom_pickup_update(ent, c_data, c_type)
     if not test_flag(ent.flags, ENT_FLAG.SHOP_ITEM) and ent.stand_counter > 15 and state.screen ~= SCREEN.TRANSITION then
         for _, player in pairs(players) do
             local has_powerup = custom_types[c_type.custom_powerup_id].entities[player.uid]
-            if player.health > 0 and (state.items.player_count == 1 or not has_powerup) and player:overlaps_with(ent) then
+            if
+                player.layer == ent.layer
+                and player.health > 0
+                and (state.items.player_count == 1 or not has_powerup)
+                and player:overlaps_with(ent)
+            then
                 c_type.pickup_callback(ent, player, c_data, has_powerup)
                 if not has_powerup then
                     module.set_custom_entity(player.uid, c_type.custom_powerup_id)
@@ -1725,17 +1734,33 @@ function module.add_custom_container_chance(custom_ent_id, chance_type, containe
     end
 end
 
+local LEVELS_ELAPSED_BY_WORLD = {
+    0,  -- 1 Dwelling
+    4,  -- 2 Jungle
+    8,  -- 3 Olmec
+    9,  -- 4 Tide Pool
+    13, -- 5 Ice caves
+    14, -- 6 Neobab
+    18, -- 7 Sunken City
+    18, -- 8 CO, use the same number as SC since it doesn't go down to level 1 on this world
+}
+
 ---Made for the set_callback, for some reason you need to wait one frame and get the entity again to make it work
----@param entity userdata
+---@param entity Entity
 ---@param base_price integer
 ---@param inflation integer
 function module.set_price(entity, base_price, inflation)
+    local uid = entity.uid
     set_timeout(function()
-        local _, y, l = get_position(entity.uid)
+        local entity = get_entity(uid) --[[@as Movable]]
+        if not entity then return end
+
+        local _, y, l = get_position(uid)
         if test_flag(state.presence_flags, 2) and y < 80 and l == LAYER.BACK then --if black market
-            get_entity(entity.uid).price = base_price+inflation
+            entity.price = base_price+inflation
         else
-            get_entity(entity.uid).price = base_price+(state.level_count*inflation)
+            local level_count = math.max((state.level - 1) + (LEVELS_ELAPSED_BY_WORLD[state.world] or 22), state.level_count)
+            entity.price = base_price+(level_count*inflation)
         end
     end, 1)
 end
@@ -1839,7 +1864,7 @@ function module.add_custom_entity_info(custom_id, name, texture_id, anim_frame, 
 end
 
 ---Set the entity info from custom entity id, sets texture, animation frame, name, and price (if it has a price)
----@param ent userdata
+---@param ent Entity
 ---@param custom_id integer
 ---@return nil
 function module.set_entity_info_from_custom_id(ent, custom_id)

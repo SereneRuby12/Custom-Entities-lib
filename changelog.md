@@ -1,5 +1,10 @@
 # Version Changelog
 
+## `1.1d`
+- Some small code changes that prevent some possible undefined behavior in the library
+- Fix being able to get pickups from another layer
+- Improved code that calculates price inflation, now works better with shortcuts or warps
+
 ## `1.1c`
 - Fix pickup drops on death when using non FRAME custom powerup update
 
